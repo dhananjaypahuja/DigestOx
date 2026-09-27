@@ -1,0 +1,46 @@
+[project]
+name = "customer-pulse"
+version = "0.1.0"
+description = "Turn a software vendor's customer feedback into an evidence-backed friction digest, reviewed by a person and published into SageOx."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Dhananjay Pahuja" }]
+requires-python = ">=3.12"
+dependencies = [
+    "typer>=0.12",
+    # zoneinfo needs an IANA database; Windows has none built in.
+    "tzdata>=2024.1; sys_platform == 'win32'",
+]
+
+[project.scripts]
+pulse = "customer_pulse.cli:app"
+
+[project.urls]
+Repository = "https://github.com/dhananjaypahuja/DigestOx"
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "ruff>=0.6",
+]
+
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/customer_pulse"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers --strict-config"
+xfail_strict = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "RUF", "PT"]

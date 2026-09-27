@@ -1,0 +1,12 @@
+# Local Customer Pulse state: the SQLite database and logs.
+.pulse/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
