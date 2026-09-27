@@ -1,0 +1,25 @@
+{
+  "repo_id": "repo_01a0e078-2dea-7728-8dfe-358ca81c9476",
+  "type": "git",
+  "init_at": "2026-09-27T01:26:07Z",
+  "init_by_email": "pahuja.dhananjay@gmail.com",
+  "init_by_name": "Dhananjay Pahuja",
+  "repo_salt": "c5eaab0e1742fd1212f668ab9ddce2828862d4fe",
+  "endpoint": "https://sageox.ai",
+  "fingerprint": {
+    "first_commit": "c5eaab0e1742fd1212f668ab9ddce2828862d4fe",
+    "monthly_checkpoints": {
+      "2026-09": "c5eaab0e1742fd1212f668ab9ddce2828862d4fe"
+    },
+    "ancestry_samples": [
+      "c5eaab0e1742fd1212f668ab9ddce2828862d4fe"
+    ]
+  },
+  "team_urls": {
+    "Dhananjay's Private Team": "https://git.sageox.ai/sageox-team_ab2jn2f5x6/team-context.git",
+    "FDE_Submission": "https://git.sageox.ai/sageox-team_v9m3epumri/team-context.git"
+  },
+  "urls_cached_at": "2026-09-27T01:26:10Z",
+  "version": "0.18.0",
+  "updated_at": "2026-09-27T01:26:10Z"
+}

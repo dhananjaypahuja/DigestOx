@@ -1,0 +1,8 @@
+{
+  "config_version": "2",
+  "repo_id": "repo_01a0e078-2dea-7728-8dfe-358ca81c9476",
+  "team_id": "team_v9m3epumri",
+  "team_name": "FDE_Submission",
+  "endpoint": "https://sageox.ai",
+  "update_frequency_hours": 24
+}
