@@ -1,0 +1,8 @@
+# Customer Pulse configuration. See README.md for every key.
+
+[pulse]
+# Timezone for digest windows. A window covers whole local calendar days here; storage is UTC.
+timezone = "America/Los_Angeles"
+
+# Local state: the SQLite database. Relative to this file. Git ignores it.
+state_dir = ".pulse"
