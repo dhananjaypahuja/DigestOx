@@ -101,7 +101,7 @@ mapping without the LLM, but every row is still validated again.
 ## 4. Storage
 
 SQLite through Python's built-in `sqlite3`, in one local file that stays out of git. Plain SQL
-with numbered migrations (`migrations/0001_initial.sql`, …) recorded in `schema_migrations`,
+with numbered migrations (`src/customer_pulse/migrations/0001_initial.sql`, …) recorded in `schema_migrations`,
 so a later move to PostgreSQL stays cheap. **SQLite is the single source of truth**, including
 the theme registry and the corrections log. The one committed derivative is the replay file
 (section 7).
@@ -115,24 +115,42 @@ the theme registry and the corrections log. The one committed derivative is the 
 | `signal_revisions` | change to an existing record | old and new raw-text hash, import, time; edits are stored deliberately, never silently overwritten |
 | `issues` | GitHub issue | number, title, redacted body, URL, author, `created_at`, latest state, `stateReason`, `closed_at`, labels |
 | `issue_observations` | issue × import | state, `stateReason`, `closed_at`, labels as exported; state history is kept, not overwritten |
-| `themes` | theme | stable `theme_id`, title, summary, code areas, status (`active`, `merged`, `retired`), `merged_into`, whether a person pinned the title |
+| `themes` | theme | stable `theme_id`, title, summary, status (`active`, `merged`, `retired`), `merged_into`, `split_from`, whether a person pinned the title |
+| `code_areas` | code area of the vendor repo | `area_key` (`wearable_sync`), description |
+| `code_area_paths` | path prefix of a code area | area, repo-relative path prefix (`bivo/wearable_sync/`) |
+| `theme_code_areas` | theme × code area | set by `model` or `person`; lets the attention view match changed files to themes in SQL |
 | `assignments` | signal → theme decision | set by `model` or `person`, confidence, short rationale, run, correction; a person's assignment always wins |
 | `links` | signal → issue relationship | `references` (found by code) or `reports` (proposed by the model with a confidence; `proposed`, `confirmed`, or `rejected`) |
 | `corrections` | review command | append-only log of the command and its arguments, replayable |
 | `sessions` | ox session in the vendor repo | name, repo id, start and stop, URL, agent, produced commits, when reconciled |
 | `session_evidence` | session × file | path, level (`verified` or `reported`), commit SHA; a file with no row is `unknown` |
 | `runs` | pipeline run | kind, mode (`live` or `replay`), window, cutoff, timezone, model, effort, prompt version, tokens, cost |
-| `digests` | digest version | `digest_id` (`dg_0003`), run, previous digest, window, content, `content_sha256`, status (`draft`, `approved`, `published`, `superseded`), approved hash |
+| `digests` | digest version | `digest_id` (`dg_0003`), run (which holds the window and cutoff), previous digest, content, `content_sha256`, status (`draft`, `approved`, `published`, `superseded`), approved hash |
 | `publish_steps` | digest × publishing step | `doc_written`, `doc_pushed`, `doc_listed`, `archived`; status and detail (team-context commit, doc hash, import id), so a retry resumes where it stopped |
 | `mappings` | approved CSV mapping | header fingerprint (unique), mapping, approval |
-| `llm_cache` | LLM request | hash of the complete request → validated response, token usage |
+| `llm_cache` | LLM request | hash of the complete request → validated response, the request as sent (redacted text only), token usage |
 
 **Views compute the facts:** the effective assignment per signal; per run and theme, the
 signal and thread counts, affected customers (distinct non-null accounts), unattributed
 count, confirmed versus proposed assignments, and first and last seen inside the window; the
 trend against the previous digest; confirmed `reports` links dated after the linked issue
 closed (with its `stateReason`); and each theme's engineering attention. Window-dependent views
-join through `runs`, because SQLite views can't take parameters.
+join through `runs`, because SQLite views can't take parameters. The views are
+`v_theme_resolution`, `v_effective_assignment`, `v_issue_latest`, `v_run_signals`,
+`v_run_theme_facts`, `v_run_theme_customers`, `v_digest_theme_trend`,
+`v_run_reported_after_closure`, `v_run_theme_attention`, and `v_last_published_doc`.
+
+**The schema enforces the invariants itself,** so a bug in later code fails loudly instead of
+corrupting evidence. All tables are STRICT, and:
+- **Timestamps:** every one must have the fixed-width UTC shape.
+- **Runs:** a run's cutoff must sit inside its window.
+- **History:** corrections and assignments are append-only, enforced by triggers.
+- **Mentions and reports:** a `references` link can never be reviewed into a claim, and a
+  `reports` link needs a logged correction to be confirmed or rejected.
+- **Approval:** an approved digest's content can't change, and its approved hash must equal its
+  content hash.
+- **Publishing:** a publish step is refused unless it carries the digest's approved hash.
+- **Evidence levels:** `verified` evidence must name its commit.
 
 The doorbell queue from the kickoff is gone (section 10), so nothing lives outside SQLite
 except the replay file and logs.
