@@ -6,8 +6,11 @@ import sys
 import pytest
 from typer.testing import CliRunner
 
-from customer_pulse import __version__
+from customer_pulse import __version__, db
 from customer_pulse.cli import app
+
+LATEST = len(db.available_migrations())
+ALL = list(range(1, LATEST + 1))
 
 
 @pytest.fixture
@@ -35,7 +38,7 @@ def test_status_before_init_reports_an_uninitialized_database(project):
     code, status = pulse_json("status")
     assert code == 0
     assert status["database"]["initialized"] is False
-    assert status["database"]["migrations_pending"] == [1]
+    assert status["database"]["migrations_pending"] == ALL
     assert status["counts"] is None
     assert not (project / ".pulse").exists()  # status never creates anything
 
@@ -44,8 +47,8 @@ def test_init_creates_the_database_and_status_reads_it(project):
     code, init = pulse_json("init")
     assert code == 0
     assert init["created"] is True
-    assert init["applied_migrations"] == [1]
-    assert init["schema_version"] == 1
+    assert init["applied_migrations"] == ALL
+    assert init["schema_version"] == LATEST
     assert init["timezone"] == "America/Los_Angeles"
     assert (project / ".pulse" / "pulse.db").is_file()
 
@@ -54,7 +57,7 @@ def test_init_creates_the_database_and_status_reads_it(project):
     assert status["pulse_version"] == __version__
     assert status["config"]["timezone"] == "America/Los_Angeles"
     assert status["database"]["initialized"] is True
-    assert status["database"]["schema_version"] == 1
+    assert status["database"]["schema_version"] == LATEST
     assert status["database"]["migrations_pending"] == []
     assert status["counts"] == {
         "accounts": 0,
@@ -87,9 +90,9 @@ def test_human_output_says_what_to_do_next(project):
     assert code == 0
     assert "Run `pulse init`" in out
     code, out = pulse("init")
-    assert "applied migration 0001" in out
+    assert "applied migration " + ", ".join(f"{v:04d}" for v in ALL) in out
     code, out = pulse("status")
-    assert "schema 1 of 1" in out
+    assert f"schema {LATEST} of {LATEST}" in out
     assert "0 signals" in out
 
 

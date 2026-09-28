@@ -197,7 +197,6 @@ def test_merged_themes_resolve_to_the_theme_that_survives(build):
 
 
 def test_run_evidence_is_half_open_and_excludes_pulse_output(build):
-    run = build.run(START, END, cutoff="2026-10-10T07:00:00Z")
     inside = [
         build.signal("C1:start", START),
         build.signal("C1:last", "2026-10-10T06:59:59.999999Z"),
@@ -205,6 +204,7 @@ def test_run_evidence_is_half_open_and_excludes_pulse_output(build):
     build.signal("C1:before", "2026-10-05T06:59:59.999999Z")
     build.signal("C1:at-cutoff", "2026-10-10T07:00:00Z")
     build.signal("C1:pulse", "2026-10-06T12:00:00Z", pulse_output=True)
+    run = build.run(START, END, cutoff="2026-10-10T07:00:00Z")
     counted = rows(build.conn, "SELECT signal_id FROM v_run_signals WHERE run_id = ?", run)
     assert sorted(row["signal_id"] for row in counted) == sorted(inside)
 
@@ -213,13 +213,13 @@ def test_theme_facts_count_customers_threads_and_review_state(build):
     build.account("acct_morrowvale", "Morrowvale Athletic Clubs")
     build.account("acct_copperfen", "Copperfen Fitness")
     build.theme("th_0003")
-    run = build.run(START, END)
     signals = [
         build.signal("C1:1", "2026-10-06T12:00:00Z", account="acct_morrowvale", thread="C1:1"),
         build.signal("C1:2", "2026-10-06T13:00:00Z", account="acct_morrowvale", thread="C1:1"),
         build.signal("C2:1", "2026-10-07T12:00:00Z", account="acct_copperfen", thread="C2:1"),
         build.signal("T-9", "2026-10-08T12:00:00Z", source="csv"),  # unattributed
     ]
+    run = build.run(START, END)
     for signal in signals[:3]:
         build.assign(signal, "th_0003", run=run)
     build.assign(signals[3], "th_0003", person=True)
@@ -243,7 +243,6 @@ def test_theme_facts_count_customers_threads_and_review_state(build):
 
 
 def test_reported_after_closure_allows_a_closure_before_the_window(build):
-    run = build.run(START, END)
     build.issue(18, closed_at="2026-09-30T18:00:00Z", reason="COMPLETED")  # a week earlier
     build.issue(19, closed_at="2026-10-08T18:00:00Z", reason="COMPLETED")  # after the report
     report = build.signal("C1:report", "2026-10-06T12:00:00Z")
@@ -255,6 +254,7 @@ def test_reported_after_closure_allows_a_closure_before_the_window(build):
     build.link(mention, 18, "references", "observed")
     late = build.signal("C1:late", "2026-10-12T08:00:00Z")  # after the cutoff
     build.link(late, 18, "reports", "confirmed")
+    run = build.run(START, END)
 
     flagged = rows(
         build.conn,
@@ -289,7 +289,6 @@ def test_issue_state_comes_from_the_latest_import(build):
 def test_engineering_attention_needs_the_theme_area_and_the_window(build):
     build.theme("th_0003")
     build.theme_area("th_0003", build.area("wearable_sync", "bivo/wearable_sync/"))
-    run = build.run(START, END)
     verified = build.session("fix", "2026-10-08T20:00:00Z")
     build.evidence(verified, "bivo/wearable_sync/tokens.py", committed_at="2026-10-08T19:50:00Z")
     build.evidence(verified, "bivo/wearable_sync/sync.py")  # also edited without a commit
@@ -299,6 +298,7 @@ def test_engineering_attention_needs_the_theme_area_and_the_window(build):
     build.evidence(elsewhere, "bivo/sso/saml.py", committed_at="2026-10-09T20:50:00Z")
     after = build.session("too-late", "2026-10-12T08:00:00Z")
     build.evidence(after, "bivo/wearable_sync/sync.py", committed_at="2026-10-12T07:59:00Z")
+    run = build.run(START, END)
 
     attention = rows(
         build.conn,
@@ -315,13 +315,22 @@ def test_engineering_attention_needs_the_theme_area_and_the_window(build):
 def test_trend_compares_each_digest_with_the_previous_one(build):
     for theme in ("th_0001", "th_0002", "th_0003"):
         build.theme(theme)
+    w1 = [
+        build.signal("w1:a", "2026-09-29T12:00:00Z"),
+        build.signal("w1:b", "2026-09-30T12:00:00Z"),
+    ]
+    w2 = [
+        build.signal("w2:a", "2026-10-06T12:00:00Z"),
+        build.signal("w2:b", "2026-10-07T12:00:00Z"),
+        build.signal("w2:c", "2026-10-08T12:00:00Z"),
+    ]
     week1 = build.run("2026-09-28T07:00:00Z", START)
     week2 = build.run(START, END)
-    build.assign(build.signal("w1:a", "2026-09-29T12:00:00Z"), "th_0001", run=week1)
-    build.assign(build.signal("w1:b", "2026-09-30T12:00:00Z"), "th_0003", run=week1)
-    build.assign(build.signal("w2:a", "2026-10-06T12:00:00Z"), "th_0001", run=week2)
-    build.assign(build.signal("w2:b", "2026-10-07T12:00:00Z"), "th_0001", run=week2)
-    build.assign(build.signal("w2:c", "2026-10-08T12:00:00Z"), "th_0002", run=week2)
+    build.assign(w1[0], "th_0001", run=week1)
+    build.assign(w1[1], "th_0003", run=week1)
+    build.assign(w2[0], "th_0001", run=week2)
+    build.assign(w2[1], "th_0001", run=week2)
+    build.assign(w2[2], "th_0002", run=week2)
     build.digest("dg_0001", week1)
     build.digest("dg_0002", week2, previous="dg_0001")
 

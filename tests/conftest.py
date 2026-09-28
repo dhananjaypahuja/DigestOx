@@ -62,8 +62,9 @@ class Builder:
         )
         return cursor.lastrowid
 
-    def import_batch(self, source: str = "slack") -> int:
-        if source not in self._imports:
+    def import_batch(self, source: str = "slack", *, new: bool = False) -> int:
+        """The current import for ``source``; ``new=True`` starts a later import."""
+        if new or source not in self._imports:
             self._imports[source] = self.insert(
                 "imports",
                 source=source,
@@ -87,8 +88,9 @@ class Builder:
         thread: str | None = None,
         pulse_output: bool = False,
         issue: int | None = None,
+        batch: int | None = None,
     ) -> int:
-        batch = self.import_batch(source)
+        batch = batch or self.import_batch(source)
         return self.insert(
             "signals",
             source=source,
@@ -105,8 +107,17 @@ class Builder:
             last_import_id=batch,
         )
 
-    def run(self, start: str, end: str, cutoff: str | None = None, kind: str = "digest") -> int:
-        return self.insert(
+    def run(
+        self,
+        start: str,
+        end: str,
+        cutoff: str | None = None,
+        kind: str = "digest",
+        *,
+        snapshot: bool = True,
+    ) -> int:
+        """A finished run whose snapshot holds every import and session that exists now."""
+        run_id = self.insert(
             "runs",
             kind=kind,
             mode="offline",
@@ -115,8 +126,20 @@ class Builder:
             cutoff=ts(cutoff or end),
             timezone="America/Los_Angeles",
             started_at=self.now,
-            status="succeeded",
+            status="running",
         )
+        if snapshot:
+            self.conn.execute(
+                "INSERT INTO run_imports (run_id, import_id) SELECT ?, import_id FROM imports",
+                (run_id,),
+            )
+            self.conn.execute(
+                "INSERT INTO run_sessions (run_id, session_name) "
+                "SELECT ?, session_name FROM sessions",
+                (run_id,),
+            )
+        self.conn.execute("UPDATE runs SET status = 'succeeded' WHERE run_id = ?", (run_id,))
+        return run_id
 
     def theme(self, theme_id: str, *, merged_into: str | None = None) -> str:
         self.insert(
