@@ -72,8 +72,10 @@ $ uv run pulse status
 | `db6d1f0` | feat: add the SQLite schema and migration runner |
 | `0bd42c7` | feat: add pulse init and pulse status |
 | `7d91902` | docs: draft upstream issues found in ox 0.18.0 |
+| `9b511ef` | docs: record decisions and sessions for review |
+| `cac026c` | docs: add Codex's review handoff and per-commit checkpoints |
 
-This record, the decision records, and the working notes in `AGENTS.md` follow in their own
+This record is committed at the session's end. Its SageOx ledger copy is refreshed after every
 commit.
 
 ## Decisions
@@ -81,13 +83,38 @@ commit.
 - [0007](../decisions/0007-enforce-invariants-in-the-schema.md): enforce the invariants in
   the schema; store code areas as tables.
 - [0009](../decisions/0009-keep-review-context-in-sageox.md): keep every session's decisions
-  and evidence available through SageOx.
+  and evidence available through SageOx. Amended after Codex's review to checkpoint after every
+  commit.
+
+## Review status
+
+Codex reviewed the plan and the foundation. Its handoff is in the ledger as
+`codex-plan-review-handoff-9b511ef`, and in the repo as
+[codex-plan-review-handoff.md](codex-plan-review-handoff.md).
+
+| Item | Status |
+|---|---|
+| First review round, 7 findings | Resolved in plan revision 2 |
+| Second review round, 2 findings (publish order, closure rule) | Resolved in DESIGN.md and plan revision 3. The closure rule is implemented and tested; the publish order is designed and gets its tests in session 6 |
+| Foundation tests | Codex: 81 passed at `7d91902`. Claude, checkpoint at `cac026c`: 81 passed, `ruff check` and `ruff format --check` clean |
+| Replayable engineering evidence: commit the session and commit inputs so reconciliation can be replayed from a fresh clone | Open, scheduled for sessions 8 and 12 |
+| CSV mapping reuse against invalid rows under the same header | Open, scheduled for session 9 |
+| Evaluation metrics checked against small hand-calculated examples | Open, scheduled for session 12 |
 
 ## Open items and next session
 
 - **Pushing** to GitHub waits for Dhananjay's OK.
+- **Codex imported a preliminary handoff into team context.** It's at
+  `data/docs/2026/09/27/digestox-engineering-handoff-7d91902-codex-plan-review-2026-09-27`.
+  `ox import` is on the ask-first list and can't be undone from the CLI, so Dhananjay has been
+  told. Session 7 will check the fresh Bivo agent's context trace for whether it surfaced.
 - **Only one writer is supported.** Two `pulse init` runs at the same moment would make the
   second fail rather than wait. That's accepted for a single-user CLI.
+- **The recording gap** from session 0 is still Dhananjay's decision.
 - **Session 2 needs:**
   - OK to run `ox init` in `~/Workbench/bivo-platform`
   - a short Claude Code session that Dhananjay starts there, with a prompt the agent will write
+- **Retrieve the context for the next agent:**
+  - `ox plan view 2026-09-27-session-1-foundation` (this record)
+  - `ox plan view codex-plan-review-handoff-9b511ef` (Codex's review)
+  - `ox plan view 2026-09-27-customer-pulse-v1-build-plan` (the approved plan)
