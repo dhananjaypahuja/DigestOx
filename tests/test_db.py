@@ -30,7 +30,7 @@ TABLES = {
     "links",
     "sessions",
     "session_evidence",
-    "publish_steps",
+    "publish_events",
     "llm_cache",
     "schema_migrations",
 }
@@ -48,6 +48,7 @@ VIEWS = {
     "v_digest_theme_trend",
     "v_run_reported_after_closure",
     "v_run_theme_attention",
+    "v_publish_steps",
     "v_last_published_doc",
 }
 

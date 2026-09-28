@@ -250,6 +250,7 @@ class Builder:
     def digest(
         self, digest_id: str, run: int, *, previous: str | None = None, approved: bool = False
     ) -> str:
+        """A draft digest; ``approved=True`` then approves it, as review would."""
         content = f"# Digest {digest_id}"
         self.insert(
             "digests",
@@ -258,12 +259,53 @@ class Builder:
             previous_digest_id=previous,
             content_md=content,
             content_sha256=sha(content),
-            status="approved" if approved else "draft",
-            approved_sha256=sha(content) if approved else None,
-            approved_at=self.now if approved else None,
+            status="draft",
             created_at=self.now,
         )
+        if approved:
+            self.approve(digest_id)
         return digest_id
+
+    def approve(self, digest_id: str) -> str:
+        self.conn.execute(
+            "UPDATE digests SET status = 'approved', approved_sha256 = content_sha256, "
+            "approved_at = ? WHERE digest_id = ?",
+            (self.now, digest_id),
+        )
+        return self.approved_hash(digest_id)
+
+    def approved_hash(self, digest_id: str) -> str:
+        row = self.conn.execute(
+            "SELECT approved_sha256 FROM digests WHERE digest_id = ?", (digest_id,)
+        ).fetchone()
+        return row[0]
+
+    def publish(
+        self,
+        digest_id: str,
+        step: str,
+        status: str = "done",
+        *,
+        doc: str | None = None,
+        commit: str | None = None,
+        listed_in: str | None = None,
+        archive_ref: str | None = None,
+        approved: str | None = None,
+        at: str = NOW,
+    ) -> int:
+        """Record one publishing attempt, with the digest's approved hash unless given."""
+        return self.insert(
+            "publish_events",
+            digest_id=digest_id,
+            step=step,
+            status=status,
+            approved_sha256=approved or self.approved_hash(digest_id) or sha("unapproved"),
+            doc_sha256=sha(doc) if doc else None,
+            team_commit=sha(commit)[:40] if commit else None,
+            listed_in=listed_in,
+            archive_ref=archive_ref,
+            at=ts(at),
+        )
 
 
 @pytest.fixture

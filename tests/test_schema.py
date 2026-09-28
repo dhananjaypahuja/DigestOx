@@ -122,7 +122,7 @@ def test_a_mention_is_never_a_report(build, relation, found_by, status, reviewed
 
 def test_approved_digest_content_is_frozen(build):
     digest = build.digest("dg_0001", build.run(START, END), approved=True)
-    with pytest.raises(sqlite3.IntegrityError, match="cannot change"):
+    with pytest.raises(sqlite3.IntegrityError, match="frozen once it leaves draft"):
         build.conn.execute(
             "UPDATE digests SET content_md = 'edited', content_sha256 = ? WHERE digest_id = ?",
             (sha("edited"), digest),
@@ -130,46 +130,16 @@ def test_approved_digest_content_is_frozen(build):
 
 
 def test_approval_must_match_the_content_hash(build):
-    run = build.run(START, END)
+    digest = build.digest("dg_0001", build.run(START, END))
     with pytest.raises(sqlite3.IntegrityError, match="CHECK"):
-        build.insert(
-            "digests",
-            digest_id="dg_0001",
-            run_id=run,
-            content_md="# Digest",
-            content_sha256=sha("# Digest"),
-            status="approved",
-            approved_sha256=sha("something else"),
-            approved_at=build.now,
-            created_at=build.now,
+        build.conn.execute(
+            "UPDATE digests SET status = 'approved', approved_sha256 = ?, approved_at = ? "
+            "WHERE digest_id = ?",
+            (sha("something else"), build.now, digest),
         )
 
 
-def test_publish_steps_act_only_on_the_approved_hash(build):
-    run = build.run(START, END)
-    draft = build.digest("dg_0001", run)
-    approved = build.digest("dg_0002", run, approved=True)
-    good = build.conn.execute(
-        "SELECT approved_sha256 FROM digests WHERE digest_id = ?", (approved,)
-    ).fetchone()[0]
-
-    def step(digest, approved_sha256):
-        build.insert(
-            "publish_steps",
-            digest_id=digest,
-            step="doc_written",
-            status="done",
-            approved_sha256=approved_sha256,
-            updated_at=build.now,
-        )
-
-    with pytest.raises(sqlite3.IntegrityError, match="approved content hash"):
-        step(draft, sha("# Digest dg_0001"))  # never approved
-    with pytest.raises(sqlite3.IntegrityError, match="approved content hash"):
-        step(approved, "b" * 64)  # a different version
-    step(approved, good)
-    with pytest.raises(sqlite3.IntegrityError, match="approved content hash"):
-        build.conn.execute("UPDATE publish_steps SET approved_sha256 = ?", ("c" * 64,))
+# The digest lifecycle and publishing records have their own tests in test_publishing.py.
 
 
 # Views
@@ -351,27 +321,3 @@ def test_trend_compares_each_digest_with_the_previous_one(build):
         {"digest_id": "dg_0002", "theme_id": "th_0003", "signal_count": 0,
          "previous_signal_count": 1, "trend": "quiet"},
     ]  # fmt: skip
-
-
-def test_the_last_published_doc_is_the_latest_push(build):
-    run = build.run(START, END)
-    for digest_id, when in (
-        ("dg_0001", "2026-10-06T00:00:00Z"),
-        ("dg_0002", "2026-10-13T00:00:00Z"),
-    ):
-        build.digest(digest_id, run, approved=True)
-        approved = build.conn.execute(
-            "SELECT approved_sha256 FROM digests WHERE digest_id = ?", (digest_id,)
-        ).fetchone()[0]
-        build.insert(
-            "publish_steps",
-            digest_id=digest_id,
-            step="doc_pushed",
-            status="done",
-            approved_sha256=approved,
-            doc_sha256=sha(f"doc {digest_id}"),
-            team_commit=sha(digest_id)[:40],
-            updated_at=ts(when),
-        )
-    last = rows(build.conn, "SELECT digest_id, doc_sha256 FROM v_last_published_doc")
-    assert last == [{"digest_id": "dg_0002", "doc_sha256": sha("doc dg_0002")}]
