@@ -158,14 +158,16 @@ def test_an_existing_readable_database_is_refused_and_reported(project):
     error = json.loads(out)["error"]
     assert code == 1
     assert error["code"] == "database_not_private"
-    assert "chmod 600" in error["hint"]
+    state_dir = (project / ".pulse").resolve()
+    assert error["message"] == f"other users can read pulse.db (mode 0644) in {state_dir}"
+    assert error["hint"] == f"run `chmod 600 '{state_dir / 'pulse.db'}'`"
     assert mode(database) == 0o644
 
     code, status = pulse_json("status")  # status reports it and changes nothing
     assert code == 0
     assert status["database"]["privacy_problems"] == [f"{database.resolve()} has mode 0644"]
     code, out = pulse("status")
-    assert "warning   other users can read local state" in out
+    assert f"warning   local state isn't private: {database.resolve()} has mode 0644" in out
 
 
 @POSIX_ONLY
@@ -189,5 +191,52 @@ def test_database_symlink_is_refused_without_following_it(project, tmp_path):
     code, out = pulse("init", "--json")
 
     assert code == 1
-    assert error_code(out) == "database_path_not_regular"
+    error = json.loads(out)["error"]
+    assert error["code"] == "database_path_not_regular"
+    link = state.resolve() / "pulse.db"  # the link itself, never its target
+    assert error["message"] == f"{link} is a symbolic link, so Pulse won't open it"
     assert not target.exists()
+
+
+def _link_to_a_private_file(state, tmp_path):
+    target = tmp_path / "elsewhere.db"
+    target.touch(mode=0o600)
+    (state / "pulse.db").symlink_to(target)
+
+
+@POSIX_ONLY
+@pytest.mark.parametrize(
+    ("make", "reason"),
+    [
+        pytest.param(_link_to_a_private_file, "is a symbolic link", id="link to a private file"),
+        pytest.param(
+            lambda state, tmp_path: (state / "pulse.db").mkdir(), "is not a regular file",
+            id="directory",
+        ),
+        pytest.param(
+            lambda state, tmp_path: os.mkfifo(state / "pulse.db"), "is not a regular file",
+            id="fifo",
+        ),
+        pytest.param(
+            lambda state, tmp_path: (state / "pulse.db-wal").symlink_to(tmp_path / "gone"),
+            "is a symbolic link",
+            id="dangling companion link",
+        ),
+    ],
+)  # fmt: skip
+def test_database_paths_pulse_wont_open_are_refused_and_reported(project, tmp_path, make, reason):
+    state = project / ".pulse"
+    state.mkdir(mode=0o700)
+    make(state, tmp_path)
+    before = sorted(path.name for path in tmp_path.iterdir())
+
+    code, out = pulse("init", "--json")
+    assert code == 1
+    error = json.loads(out)["error"]
+    assert error["code"] == "database_path_not_regular"
+    assert error["message"].endswith(f"{reason}, so Pulse won't open it")
+    assert sorted(path.name for path in tmp_path.iterdir()) == before  # nothing followed
+
+    code, status = pulse_json("status")
+    assert code == 0
+    assert [p.endswith(reason) for p in status["database"]["privacy_problems"]] == [True]

@@ -41,27 +41,23 @@ def _present(path: Path) -> bool:
     return path.exists() or path.is_symlink()
 
 
-def _path_problem(path: Path) -> str | None:
-    """Return a privacy/path problem without following an unsafe database path."""
+def _database_problem(path: Path) -> tuple[str, str] | None:
+    """What stops Pulse using a database file as it is, as (error code, reason), or None.
+
+    It reads the path with lstat, so a symbolic link is reported, never followed.
+    """
     try:
         info = path.lstat()
     except FileNotFoundError:
         return None
     if stat.S_ISLNK(info.st_mode):
-        return f"{path} is a symbolic link"
+        return "database_path_not_regular", "is a symbolic link"
     if not stat.S_ISREG(info.st_mode):
-        return f"{path} is not a regular file"
-    if _exposed(path):
-        return f"{path} has mode {_mode(path):04o}"
+        return "database_path_not_regular", "is not a regular file"
+    mode = stat.S_IMODE(info.st_mode)
+    if permissions_apply() and mode & _GROUP_AND_OTHER:
+        return "database_not_private", f"has mode {mode:04o}"
     return None
-
-
-def _is_unsafe_path(path: Path) -> bool:
-    try:
-        info = path.lstat()
-    except FileNotFoundError:
-        return False
-    return stat.S_ISLNK(info.st_mode) or not stat.S_ISREG(info.st_mode)
 
 
 def database_files(db_path: Path) -> list[Path]:
@@ -71,16 +67,47 @@ def database_files(db_path: Path) -> list[Path]:
 
 
 def privacy_problems(config: Config) -> list[str]:
-    """Describe any existing state that other users could read. Changes nothing."""
+    """Describe existing state that isn't private: readable by other users, or a database path
+    Pulse won't open. Changes nothing."""
     if not permissions_apply() or not config.state_dir.is_dir():
         return []
     problems = []
     if _exposed(config.state_dir):
         problems.append(f"{config.state_dir} has mode {_mode(config.state_dir):04o}")
-    problems.extend(
-        problem for path in database_files(config.db_path) if (problem := _path_problem(path))
-    )
+    for path in database_files(config.db_path):
+        if found := _database_problem(path):
+            problems.append(f"{path} {found[1]}")
     return problems
+
+
+def _refuse_unusable_database_files(config: Config) -> None:
+    """Refuse a database or companion file that is a link, isn't a regular file, or that other
+    users can read. Nothing is opened or followed first."""
+    found = [
+        (path, problem)
+        for path in database_files(config.db_path)
+        if (problem := _database_problem(path))
+    ]
+    unusable = [
+        f"{path} {reason}" for path, (code, reason) in found if code != "database_not_private"
+    ]
+    if unusable:
+        them = "it" if len(unusable) == 1 else "them"
+        raise PulseError(
+            "database_path_not_regular",
+            f"{'; '.join(unusable)}, so Pulse won't open {them}",
+            hint=f"move {them} aside, or set pulse.state_dir to a private directory",
+        )
+    if found:
+        listing = ", ".join(
+            f"{path.name} ({reason.removeprefix('has ')})" for path, (_, reason) in found
+        )
+        commands = " ".join(f"'{path}'" for path, _ in found)
+        raise PulseError(
+            "database_not_private",
+            f"other users can read {listing} in {config.state_dir}",
+            hint=f"run `chmod 600 {commands}`",
+        )
 
 
 def prepare(config: Config) -> bool:
@@ -105,45 +132,16 @@ def prepare(config: Config) -> bool:
             hint=f"run `chmod 700 '{state_dir}'`, or set pulse.state_dir to a private directory",
         )
 
-    for path in database_files(config.db_path):
-        problem = _path_problem(path)
-        if problem and _is_unsafe_path(path):
-            raise PulseError(
-                "database_path_not_regular",
-                f"{problem}; Pulse will not follow it",
-                hint="move it aside, or set pulse.state_dir to a private directory",
-            )
+    _refuse_unusable_database_files(config)
 
     created = False
     try:
         # Create the database file private before SQLite opens it; SQLite gives its journal
-        # files the same permissions as the database.
-        flags = os.O_CREAT | os.O_EXCL | os.O_WRONLY
-        if hasattr(os, "O_NOFOLLOW"):
-            flags |= os.O_NOFOLLOW
+        # files the same permissions as the database. O_EXCL already refuses to follow a link;
+        # O_NOFOLLOW says so explicitly where the platform has it.
+        flags = os.O_CREAT | os.O_EXCL | os.O_WRONLY | getattr(os, "O_NOFOLLOW", 0)
         os.close(os.open(config.db_path, flags, PRIVATE_FILE_MODE))
         created = True
     except FileExistsError:
         pass
-
-    problems = [
-        problem for path in database_files(config.db_path) if (problem := _path_problem(path))
-    ]
-    if problems:
-        unsafe = [path for path in database_files(config.db_path) if _is_unsafe_path(path)]
-        if unsafe:
-            listing = ", ".join(problems)
-            raise PulseError(
-                "database_path_not_regular",
-                f"{listing}; Pulse will not follow it",
-                hint="move it aside, or set pulse.state_dir to a private directory",
-            )
-        listing = ", ".join(problems)
-        exposed = [path for path in database_files(config.db_path) if _exposed(path)]
-        commands = " ".join(f"'{path}'" for path in exposed)
-        raise PulseError(
-            "database_not_private",
-            f"other users can read {listing} in {state_dir}",
-            hint=f"run `chmod 600 {commands}`",
-        )
     return created

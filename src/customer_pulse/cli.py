@@ -236,7 +236,7 @@ def _render_status(result: Result) -> None:
     typer.echo(f"  config    {source}; timezone {config['timezone']}")
     where = _display_path(database["path"])
     for problem in database["privacy_problems"]:
-        typer.echo(f"  warning   other users can read local state: {problem}")
+        typer.echo(f"  warning   local state isn't private: {problem}")
     if not database["initialized"]:
         typer.echo(f"  database  {where} is not initialized. Run `pulse init`.")
         return
