@@ -11,6 +11,7 @@ GitHub and in SageOx ([decision 0009](../decisions/0009-keep-review-context-in-s
 | 1 | Foundation: package, time model, schema, `pulse init` and `pulse status` | [01-foundation.md](01-foundation.md) | `ses_01a0e4a5` |
 | Codex reviews | Plan critique, resolution status, foundation verification, and the next implementation handoff | [codex-plan-review-handoff.md](codex-plan-review-handoff.md) | `ses_01a0e4f5` |
 | Session 1 implementation review | Hold foundation sign-off: 2 P1 and 4 P2 findings; fresh Claude automatic priming verified | [codex-session-1-review.html](codex-session-1-review.html) | `ses_01a0e56c` |
+| 1b | Foundation repairs: all six review findings fixed in migrations `0002` to `0004` and the CLI, with regression tests; design and decision records updated | [01b-foundation-repairs.md](01b-foundation-repairs.md) | `ses_01a0e4a5`, then `ses_01a0e910` after a context compaction |
 
 The implementation review is HTML-primary; SageOx derives its terminal-readable record.
 Retrieve it with `ox plan view codex-session-1-review-95fc080`. Its findings supersede the
