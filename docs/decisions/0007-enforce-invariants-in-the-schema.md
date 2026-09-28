@@ -68,6 +68,24 @@ Two working rules came out of the repairs:
 `tests/test_snapshots.py`, `tests/test_publishing.py`, and `tests/test_themes.py` pin the new
 invariants. The suite has 155 tests after session 1b.
 
+## Amendment, 2026-09-28: replacement fires the delete guards
+
+Codex's re-review (`ca5cadd`) found that SQLite's REPLACE conflict resolution deletes a row
+without firing DELETE triggers, so replacing a row could bypass rules enforced by triggers.
+Two more working rules follow:
+- **Every connection enables recursive triggers** (`db.connect`), so a replacement fires the
+  DELETE guards. A connection opened any other way, such as the `sqlite3` shell, doesn't get
+  this protection.
+- **Every table guarded against UPDATE also guards DELETE.** Replacement never fires UPDATE
+  triggers, so an UPDATE guard alone protects nothing. Migration `0005` added the missing
+  guards to `signals`, `runs`, and `sessions` (see
+  [0010](0010-bind-every-run-to-an-evidence-snapshot.md)'s amendment). A structural test in
+  `tests/test_replacement.py` fails if a table ever breaks this rule.
+
+<!-- SOURCE: sageox plan:2026-09-28-codex-re-review-checkpoint-foundation-hardening -->
+
+The suite has 176 tests after the re-review.
+
 ## Consequences
 
 - Bugs fail loudly at write time instead of producing wrong facts.

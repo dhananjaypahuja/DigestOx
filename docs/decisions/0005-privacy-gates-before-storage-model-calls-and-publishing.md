@@ -52,6 +52,17 @@ than silently change a directory the user chose.
   refusal behaves the same everywhere.
 - The checks rely on POSIX permissions. On other systems Pulse can't make them.
 
+## Amendment, 2026-09-28: Pulse opens only a regular database file
+
+Codex's re-review found that a dangling `pulse.db` symlink escaped the privacy check, and
+SQLite created the link's target with default permissions. Codex's fix (`ca5cadd`) refuses a
+database or SQLite companion path that is a symbolic link or isn't a regular file, with the
+stable code `database_path_not_regular`, before anything is opened or created. `pulse status`
+reports such paths. Claude's review corrected the wording of that refusal and of the status
+warning (`202bde8`).
+
+<!-- SOURCE: sageox plan:2026-09-28-codex-re-review-checkpoint-foundation-hardening -->
+
 ## Consequences
 
 - The first live call waits for the session 4 tests.

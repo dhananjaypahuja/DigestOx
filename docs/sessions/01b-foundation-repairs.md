@@ -1,8 +1,8 @@
 # Session 1b: foundation repairs after Codex's review
 
 - **Date:** 2026-09-28 (PDT)
-- **Outcome:** close the six gaps Codex reproduced in the foundation at `95fc080`, before
-  session 2 starts.
+- **Outcome:** close the six gaps Codex reproduced in the foundation at `95fc080`, and the four
+  its re-review and Claude's review of that re-review found, before session 2 starts.
 - **Review:** ledger `codex-session-1-review-95fc080`; repo copy
   [codex-session-1-review.html](codex-session-1-review.html) (commit `30ccb9c`).
 - **Recording:** SageOx session `ses_01a0e4a5` until the context was compacted at 10:30 PDT.
@@ -24,6 +24,10 @@
 | R4 · P2 | Publishing ownership proof is incomplete and mutable | **Resolved in `af43aec`** | Migration `0003`: append-only publish events |
 | R5 · P2 | Filesystem and database failures escape JSON output | **Resolved in `76194a8`** | CLI error translation |
 | R6 · P2 | An existing permissive state directory exposes the database | **Resolved in `76194a8`** | CLI privacy checks |
+| R7 · re-review | `INSERT OR REPLACE` deletes a conflicting row without firing DELETE guards | **Resolved by Codex in `ca5cadd`** | Recursive triggers on every connection |
+| R8 · re-review | A dangling `pulse.db` symlink escapes the privacy check | **Resolved by Codex in `ca5cadd`** | Links and non-regular paths refused |
+| R9 · review of `ca5cadd` | Replacement still rewrites signals, runs, and sessions; a plain DELETE removes a counted signal; an issue's creation time is unguarded | **Resolved in `70ed845`** | Migration `0005`: kept rows |
+| R10 · review of `ca5cadd` | Two privacy messages are garbled or mislabelled | **Resolved in `202bde8`** | One check that returns a code and a reason |
 
 ## R2: how it was fixed
 
@@ -138,6 +142,8 @@ repeated R6 on real state:
   `pulse status` reports schema 4 of 4.
 - The upgrade printed "applied migration 0002, 0003, 0004", and two migration errors printed
   raw Python lists such as `[2]`. Commit `982beff` names migration lists properly.
+- After the re-review fixes, the reworked privacy check accepted this private database, and
+  `pulse init` applied migration 0005: schema 5 of 5.
 
 ## Design and decision records
 
@@ -167,6 +173,57 @@ Commit `346b2bb` brings the documents in line with the code:
 drift for the amended records, because it compares cited files against each record's original
 date; the dated amendments are the answer its guidance asks for.
 
+After the re-review, the commit that adds this version of the record also updates:
+- **DESIGN.md:** the replacement rule and kept rows in the invariants, the refusal of links
+  and non-regular database paths, the re-review in the design history, and a new limit (the
+  replacement guard needs Pulse's own connections).
+- **Second dated amendments** to [0005](../decisions/0005-privacy-gates-before-storage-model-calls-and-publishing.md)
+  (Pulse opens only a regular database file) and
+  [0007](../decisions/0007-enforce-invariants-in-the-schema.md) (replacement fires the delete
+  guards), and a first one to [0010](../decisions/0010-bind-every-run-to-an-evidence-snapshot.md)
+  (kept rows, however they are written). ox surfaced Codex's re-review checkpoint for each
+  citation, and `ox decision enrich --file` finds no unresolved references.
+
+## Codex's re-review, and Claude's review of its fixes
+
+Codex re-reviewed `30ccb9c..02dccb7`, confirmed the six repairs, and fixed two adversarial
+bypasses in `ca5cadd`. Its record is [02-codex-rereview.md](02-codex-rereview.md), also in the
+ledger as `codex-re-review-checkpoint-foundation-hardening`.
+- **R7.** SQLite's `INSERT OR REPLACE` deletes the conflicting row without firing DELETE
+  triggers, so it could rewrite an approved digest or a successful publish event. Every
+  connection now enables recursive triggers, so replacement fires the DELETE guards.
+- **R8.** A dangling `pulse.db` symlink escaped the privacy check, and SQLite created its target
+  with default permissions. Links and non-regular database paths are now refused with
+  `database_path_not_regular`.
+
+Claude reviewed `ca5cadd` before the final push and found two more problems:
+- **R9, the same class in other tables.** Recursive triggers protect only tables that have
+  DELETE guards. A map of every trigger found three tables guarded only against UPDATE:
+  `runs`, `sessions`, and `signals`. With `ca5cadd` in place, replacement still moved a
+  finished run's window and reopened it, moved a used session's stop time, and changed a
+  counted signal's customer and time. A plain `DELETE` removed a counted signal, and updating
+  an issue's `created_at` dropped the issue from a finished run.
+
+  Migration `0005` keeps signals, runs, issues, and used sessions, and fixes an issue's
+  creation time. Reconciliation can still refresh or drop a session no run has used, and
+  re-imports still update rows in place: an upsert fires the UPDATE rules.
+- **R10, wording.** `ca5cadd` reused status descriptions inside the refusal. `pulse init` said
+  "other users can read /…/pulse.db has mode 0644 in /…/.pulse", and `pulse status` labelled a
+  symbolic link "other users can read local state". The tests checked only error codes.
+
+  The check now returns an error code and a reason, and runs once, before the database is
+  created. The refusal reads "other users can read pulse.db (mode 0644) in …" or "… is a
+  symbolic link, so Pulse won't open it", and `pulse status` says "local state isn't private".
+  Tests now pin the messages, and cover a link to an existing file, a directory, a FIFO, and a
+  dangling companion link.
+
+**Tests for R9** (`tests/test_replacement.py`, 15 tests; 10 fail without migration `0005`):
+- each bypass, by replacement and by plain delete, with the run's facts unchanged
+- replacement against every other guarded table: themes, assignments, corrections, issue
+  observations, session evidence, and both snapshot tables
+- the upsert path the readers will use
+- a structural rule: every table guarded against UPDATE must also guard DELETE
+
 ## Commits
 
 | Commit | Change | Validation run |
@@ -178,19 +235,25 @@ date; the dated amendments are the answer its guidance asks for.
 | `982beff` | fix: name migration lists properly in pulse output and errors | 155 passed; `ruff check` and `ruff format --check` clean |
 | `346b2bb` | docs: record the foundation repairs in the design and decision records | documents only; `ox decision enrich --file` on 0003, 0004, 0005, 0007, and 0010: 0 unresolved references |
 
-This record and its row in the sessions README are committed next, after `346b2bb`.
+| `02dccb7` | docs: add the session 1b record | documents only |
+| `ca5cadd` | fix: close replacement and database path privacy bypasses (Codex) | 157 passed; `ruff check` and `ruff format --check` clean (Codex's run) |
+| `08b0e7d` | docs: record Codex re-review and push approval (Codex) | documents only |
+| `70ed845` | fix: keep the rows finished runs rely on, however they are written | 172 passed on the committed tree; `ruff check` and `ruff format --check` clean |
+| `202bde8` | fix: word database path refusals and status warnings correctly | 176 passed; `ruff check` and `ruff format --check` clean |
+
+This record is committed with the design and decision updates, in the commit after `202bde8`.
 
 ## Next step
 
-All six findings are resolved and documented. Next is Codex's re-review of `30ccb9c..HEAD`.
-To review:
+All ten findings are resolved and documented. R9 and R10 were found after Codex wrote its
+re-review record, so that record's "ready for the next stage" predates them. Dhananjay asked
+for a review of Codex's fixes and a final push, and the push of `08b0e7d..HEAD` completes the
+foundation. To check this last round:
 - `ox plan view 2026-09-28-session-1b-foundation-repairs-after-codex` (this record)
-- `git log --stat 30ccb9c..HEAD`, then the migrations `0002` to `0004`,
-  `src/customer_pulse/state.py`, and the regression tests named above
-- decision 0010 and the amendments to 0003, 0004, 0005, and 0007
+- `git log --stat 08b0e7d..HEAD`, then migration `0005`, `tests/test_replacement.py`, and the
+  reworked check in `src/customer_pulse/state.py`
 
-The foundation-repair push was authorized by Dhananjay as part of the Codex re-review. Session
-2 still needs its own approvals: `ox init` in `~/Workbench/bivo-platform`, and Dhananjay
-starting the short Bivo session.
+Session 2 still needs its own approvals: `ox init` in `~/Workbench/bivo-platform`, and
+Dhananjay starting the short Bivo session.
 
 Retrieve this record with `ox plan view 2026-09-28-session-1b-foundation-repairs-after-codex`.

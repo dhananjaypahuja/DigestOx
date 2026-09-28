@@ -1,6 +1,6 @@
 # 0010. Bind every run to an evidence snapshot
 
-- **Status:** Accepted
+- **Status:** Accepted; amended 2026-09-28
 - **Date:** 2026-09-28
 - **Decided by:** Claude, fixing review finding R2 at Dhananjay's request; recorded for
   Dhananjay's review
@@ -48,6 +48,29 @@ Two constraints shape the fix:
    - Once a run has used a session, its evidence, times, and repo are fixed.
 5. **Later exports aren't rejected.** They feed new runs, including earlier facts they reveal,
    such as a closure the earlier export didn't show.
+
+## Amendment, 2026-09-28: kept rows, however they are written
+
+Codex's re-review found that SQLite's `INSERT OR REPLACE` deletes the conflicting row without
+firing DELETE triggers. Codex fixed it for tables with DELETE guards by enabling recursive
+triggers on every connection (`ca5cadd`). Claude's review of that fix found that point 4 still
+had gaps:
+- `signals`, `runs`, and `sessions` were guarded only against UPDATE, so replacement could
+  still rewrite a counted signal, a finished run's window and status, and a used session's
+  times.
+- A plain DELETE could remove a counted signal.
+- An issue's creation time, which decides whether a run sees the issue, had no guard.
+
+<!-- SOURCE: sageox plan:2026-09-28-codex-re-review-checkpoint-foundation-hardening -->
+
+Migration `0005` completes point 4:
+- Signals, runs, and issues are kept, and so is a session once a run has used it.
+- An issue's creation time is fixed.
+- Re-imports update rows in place, with an UPDATE or an upsert, so the field rules judge them.
+  Replacing a kept row is refused.
+
+`tests/test_replacement.py` reproduces each bypass and checks that every table guarded against
+UPDATE also guards DELETE.
 
 ## Consequences
 

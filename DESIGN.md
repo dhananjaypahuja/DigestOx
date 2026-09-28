@@ -6,7 +6,8 @@
 
 Status: draft for review, written in the first session (2026-09-27). The facts about `ox` in
 section 14 were checked against ox 0.18.0 on that date. Session 1b (2026-09-28) updated
-sections 4, 5, 8, 9, and 14 to 16 for the foundation repairs after Codex's review.
+sections 4, 5, 8, 9, and 14 to 16 for the foundation repairs after Codex's review, and again
+after Codex's re-review.
 
 ## 1. The problem
 
@@ -105,7 +106,7 @@ SQLite through Python's built-in `sqlite3`, in one local file that stays out of 
 with numbered migrations (`src/customer_pulse/migrations/0001_initial.sql`, …) recorded in
 `schema_migrations`, so a later move to PostgreSQL stays cheap. A shipped migration is never
 edited: Pulse refuses a database whose applied migrations changed after they were applied, so
-every fix is a new migration (`0002` to `0004` came from Codex's review). **SQLite is the
+every fix is a new migration (`0002` to `0005` came from Codex's reviews). **SQLite is the
 single source of truth**, including the theme registry and the corrections log. The one
 committed derivative is the replay file (section 7).
 
@@ -159,9 +160,11 @@ corrupting evidence (decisions [0007](docs/decisions/0007-enforce-invariants-in-
 - **Timestamps:** every one must have the fixed-width UTC shape.
 - **Runs:** a run's cutoff must sit inside its window. The window and cutoff are fixed, a run
   finishes once, and its evidence snapshot is recorded only while it runs.
-- **Evidence:** issue observations and session evidence are history. A signal's identity,
-  time, customer, thread, issue, and first import are fixed; only its text can be revised.
-  Once a run has used a session, its evidence and times are fixed.
+- **Evidence:** issue observations and session evidence are history. Signals, issues, and
+  runs are kept, and so is a session once a run has used it. A signal's identity, time,
+  customer, thread, issue, and first import are fixed, and so is an issue's creation time;
+  only a signal's text can be revised. Once a run has used a session, its evidence and times
+  are fixed.
 - **History:** corrections and assignments are append-only, enforced by triggers.
 - **Mentions and reports:** a `references` link can never be reviewed into a claim, and a
   `reports` link needs a logged correction to be confirmed or rejected.
@@ -176,19 +179,27 @@ corrupting evidence (decisions [0007](docs/decisions/0007-enforce-invariants-in-
 - **Evidence levels:** `verified` evidence must name its commit.
 - **Migrations:** a migration stops rather than drop existing records or accept a broken
   state, such as a merge cycle already in the database.
+- **Replacement:** SQLite's REPLACE deletes the row it replaces without firing UPDATE
+  triggers, so every connection enables recursive triggers to make it fire the DELETE guards,
+  and every table guarded against UPDATE also guards DELETE. A test checks the second rule.
+  Re-imports update rows in place, with an UPDATE or an upsert (decision
+  [0007](docs/decisions/0007-enforce-invariants-in-the-schema.md)'s second amendment).
 
 **Local state is private.** The database holds customers' words, so Pulse creates the state
 directory as 0700 and the database file as 0600 before SQLite opens it. Existing state that
 other users can read is refused with the exact `chmod` to run. Pulse never changes
-permissions itself, refuses symbolic links and other non-regular database paths, and `pulse status` reports such problems without changing anything
-(decision [0005](docs/decisions/0005-privacy-gates-before-storage-model-calls-and-publishing.md)'s
-amendment).
+permissions itself. It also refuses a database or companion path that is a symbolic link or
+isn't a regular file, before opening anything, so it never follows a link out of the state
+directory. `pulse status` reports all of these without changing anything (decision
+[0005](docs/decisions/0005-privacy-gates-before-storage-model-calls-and-publishing.md)'s
+amendments).
 
 **Failures come back in the same format as results.** With `--json`, a failure is a JSON error
 with a stable code and a hint; without it, the same message goes to stderr. Expected
 filesystem and SQLite failures have their own codes: `state_path_not_a_directory`,
-`state_dir_not_private`, `database_not_private`, `database_path_not_regular`, `permission_denied`, `filesystem_error`,
-`database_locked`, `database_unavailable`, `database_unreadable`, and `database_error`.
+`state_dir_not_private`, `database_not_private`, `database_path_not_regular`,
+`permission_denied`, `filesystem_error`, `database_locked`, `database_unavailable`,
+`database_unreadable`, and `database_error`.
 Programming errors still raise, so a bug can't hide behind a tidy message. Every connection
 waits up to five seconds (`LOCK_WAIT_SECONDS`) for another command's lock.
 
@@ -217,8 +228,8 @@ commits fall before the cutoff. Tests run on a fixed clock.
 **Evidence snapshots.** Each run records the imports and engineering sessions it used, and
 every run-scoped view reads only that snapshot, so a later export can't change the facts of a
 run that already exists. Later exports feed new runs, including earlier facts they reveal
-(decision [0010](docs/decisions/0010-bind-every-run-to-an-evidence-snapshot.md)). An issue's state at the
-cutoff comes from the snapshot's observations in import order:
+(decision [0010](docs/decisions/0010-bind-every-run-to-an-evidence-snapshot.md)). An issue's
+state at the cutoff comes from the snapshot's observations in import order:
 
 | State | When |
 |---|---|
@@ -288,9 +299,10 @@ has assigned are pinned and never re-assigned by the model. `merge` keeps the su
 records `merged_into`; `split` keeps the original ID for what remains and mints new IDs for the
 parts that leave. A theme merges only into an active theme, and merges and split lineage are
 final, so merges can never form a cycle. Themes are never deleted; one that stops being useful
-is retired. Resolution follows merge chains to any depth. Before the first publish, tests with a fake model run grouping several times
-and check that the same inputs keep the same theme IDs, new signals join existing themes, a
-person's assignment survives a re-run and wins, and merges and splits keep their lineage.
+is retired. Resolution follows merge chains to any depth. Before the first publish, tests
+with a fake model run grouping several times and check that the same inputs keep the same
+theme IDs, new signals join existing themes, a person's assignment survives a re-run and
+wins, and merges and splits keep their lineage.
 
 **Links.** Code finds `references` (issue URLs, `#142`, `owner/repo#142`). The model may
 propose `reports`, with a confidence. A `reports` link supports a claim about an issue only
@@ -301,9 +313,10 @@ a *confirmed* `reports` link ties them together. The report must fall inside the
 before its cutoff; the closure only has to come before the report, so an issue closed last
 week and reported again this week is flagged. The closure comes from the run's evidence
 snapshot; when the snapshot holds several, the flag shows the latest one before the report
-(decision [0004](docs/decisions/0004-flag-re-reports-even-when-the-closure-precedes-the-window.md)). The digest shows the issue's `stateReason`
-(`completed` or `not_planned`) beside the flag and never calls it a regression, which would
-need evidence about releases or earlier working behaviour.
+(decision [0004](docs/decisions/0004-flag-re-reports-even-when-the-closure-precedes-the-window.md)).
+The digest shows the issue's `stateReason` (`completed` or `not_planned`) beside the flag and
+never calls it a regression, which would need evidence about releases or earlier working
+behaviour.
 
 **The digest** leads with the top themes. Each carries:
 - the user goal and the break point
@@ -612,6 +625,12 @@ six, with new migrations and CLI changes, before session 2:
 - Filesystem and database failures escaped the JSON output. They now have stable error codes.
 - An existing readable state directory exposed the database. Such state is now refused.
 
+Codex's re-review confirmed the six repairs and found two adversarial bypasses, which it fixed
+in `ca5cadd`. SQLite's `INSERT OR REPLACE` could rewrite approval and publishing history, and a
+dangling database symlink escaped the privacy check. Reviewing that fix found the same
+replacement gap in three more tables, plus an issue creation time that nothing guarded, and
+migration `0005` closed them.
+
 The vendor was nearly swapped for TraceRoot, a real open-source startup. The decision was to
 keep the fictional Bivo, so that invented complaints never attach to a real company, and to
 borrow TraceRoot's open-source engineering conventions instead.
@@ -623,6 +642,9 @@ borrow TraceRoot's open-source engineering conventions instead.
 - A run's issue state is `unknown` when its snapshot can't place a reopen relative to the
   cutoff, because GitHub's export has no reopen history.
 - Local state is protected by POSIX permissions. On other systems Pulse can't check them.
+- The replacement guard depends on recursive triggers, which Pulse turns on for its own
+  connections. A connection opened another way, such as the `sqlite3` shell, could still
+  replace rows.
 - Pulse depends on ox's CLI output and team-context layout, which change often. It pins the
   version it was checked against (above), parses JSON defensively, and fails loudly.
 - **Growth path:** PostgreSQL, when several FDEs write at once, Pulse becomes a hosted
