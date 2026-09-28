@@ -37,6 +37,7 @@ TABLES = {
 
 VIEWS = {
     "v_theme_resolution",
+    "v_theme_unresolved",
     "v_effective_assignment",
     "v_issue_latest",
     "v_run_signals",

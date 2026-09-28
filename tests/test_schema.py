@@ -157,9 +157,10 @@ def test_a_person_assignment_wins_over_a_later_model_run(build):
 
 
 def test_merged_themes_resolve_to_the_theme_that_survives(build):
-    build.theme("th_0001")
-    build.theme("th_0002", merged_into="th_0001")
-    build.theme("th_0003", merged_into="th_0002")  # merged twice over
+    for theme in ("th_0001", "th_0002", "th_0003"):
+        build.theme(theme)
+    build.merge("th_0003", "th_0002")
+    build.merge("th_0002", "th_0001")  # the survivor merges too, forming a chain
     signal = build.signal("C1:1", "2026-10-06T12:00:00Z")
     build.assign(signal, "th_0003", run=build.run(START, END))
     effective = rows(build.conn, "SELECT theme_id, assigned_theme_id FROM v_effective_assignment")

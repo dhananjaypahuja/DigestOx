@@ -152,6 +152,11 @@ class Builder:
         )
         return theme_id
 
+    def merge(self, theme: str, into: str) -> None:
+        self.conn.execute(
+            "UPDATE themes SET status = 'merged', merged_into = ? WHERE theme_id = ?", (into, theme)
+        )
+
     def correction(self, command: str = "theme move", digest: str | None = None) -> int:
         return self.insert(
             "corrections",
