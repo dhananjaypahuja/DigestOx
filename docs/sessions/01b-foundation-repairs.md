@@ -189,7 +189,8 @@ To review:
   `src/customer_pulse/state.py`, and the regression tests named above
 - decision 0010 and the amendments to 0003, 0004, 0005, and 0007
 
-Pushing waits for Dhananjay's OK. Session 2 still needs its own approvals: `ox init` in
-`~/Workbench/bivo-platform`, and Dhananjay starting the short Bivo session.
+The foundation-repair push was authorized by Dhananjay as part of the Codex re-review. Session
+2 still needs its own approvals: `ox init` in `~/Workbench/bivo-platform`, and Dhananjay
+starting the short Bivo session.
 
 Retrieve this record with `ox plan view 2026-09-28-session-1b-foundation-repairs-after-codex`.
