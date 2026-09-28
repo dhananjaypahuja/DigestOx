@@ -135,6 +135,18 @@ def test_a_database_from_a_newer_pulse_is_refused(conn, clock):
     assert caught.value.code == "schema_too_new"
 
 
+@pytest.mark.parametrize(
+    ("versions", "text"),
+    [
+        ([2], "migration 0002"),
+        ([2, 3], "migrations 0002 and 0003"),
+        ([1, 2, 4], "migrations 0001, 0002, and 0004"),
+    ],
+)
+def test_migrations_are_named_for_people(versions, text):
+    assert db.describe_migrations(versions) == text
+
+
 def test_foreign_keys_are_enforced(conn):
     with pytest.raises(sqlite3.IntegrityError, match="FOREIGN KEY"):
         conn.execute(

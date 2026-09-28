@@ -151,10 +151,6 @@ def _display_path(text: str) -> str:
         return str(path)
 
 
-def _versions(versions: list[int]) -> str:
-    return ", ".join(f"{version:04d}" for version in versions)
-
-
 # pulse init
 
 
@@ -188,7 +184,7 @@ def _render_init(result: Result) -> None:
     if result["applied_migrations"]:
         verb = "Created" if result["created"] else "Updated"
         typer.echo(
-            f"{verb} {where}: applied migration {_versions(result['applied_migrations'])}, "
+            f"{verb} {where}: applied {db.describe_migrations(result['applied_migrations'])}, "
             f"now at schema {result['schema_version']}."
         )
     else:
@@ -246,11 +242,12 @@ def _render_status(result: Result) -> None:
         return
     schema = f"schema {database['schema_version']} of {database['latest_schema_version']}"
     if database["migrations_pending"]:
-        schema += f"; run `pulse init` to apply {_versions(database['migrations_pending'])}"
+        pending = db.describe_migrations(database["migrations_pending"])
+        schema += f"; run `pulse init` to apply {pending}"
     if database["migrations_modified"]:
         schema += (
-            f"; warning: migrations {_versions(database['migrations_modified'])} changed "
-            "after they were applied"
+            f"; warning: {db.describe_migrations(database['migrations_modified'])} changed "
+            "after being applied"
         )
     typer.echo(f"  database  {where}, {schema}")
     typer.echo(

@@ -68,7 +68,8 @@ def test_human_output_says_what_to_do_next(project):
     assert code == 0
     assert "Run `pulse init`" in out
     code, out = pulse("init")
-    assert "applied migration " + ", ".join(f"{v:04d}" for v in ALL) in out
+    names = [f"{v:04d}" for v in ALL]
+    assert f"applied migrations {', '.join(names[:-1])}, and {names[-1]}, now at schema" in out
     code, out = pulse("status")
     assert f"schema {LATEST} of {LATEST}" in out
     assert "0 signals" in out

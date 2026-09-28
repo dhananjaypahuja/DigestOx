@@ -99,21 +99,31 @@ def _applied(conn: sqlite3.Connection) -> dict[int, str]:
     return {row[0]: row[1] for row in rows}
 
 
+def describe_migrations(versions: list[int]) -> str:
+    """Name migrations for people: "migration 0002", "migrations 0002, 0003, and 0004"."""
+    names = [f"{version:04d}" for version in versions]
+    if len(names) == 1:
+        return f"migration {names[0]}"
+    if len(names) == 2:
+        return f"migrations {names[0]} and {names[1]}"
+    return f"migrations {', '.join(names[:-1])}, and {names[-1]}"
+
+
 def _check_applied(applied: dict[int, str], available: list[Migration]) -> None:
     known = {m.version: m for m in available}
     unknown = sorted(set(applied) - set(known))
     if unknown:
         raise PulseError(
             "schema_too_new",
-            f"the database has migrations {unknown} that this version of Customer Pulse "
-            "doesn't know",
+            f"the database has {describe_migrations(unknown)}, which this version of Customer "
+            "Pulse doesn't know",
             hint="upgrade customer-pulse",
         )
     modified = sorted(v for v, sha in applied.items() if known[v].sha256 != sha)
     if modified:
         raise PulseError(
             "migration_modified",
-            f"migrations {modified} changed after they were applied to this database",
+            f"{describe_migrations(modified)} changed after being applied to this database",
             hint="add a new numbered migration instead of editing an applied one",
         )
 
