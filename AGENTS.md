@@ -12,8 +12,15 @@ Customer Pulse is built in recorded sessions against an approved plan (SageOx le
 record in `docs/sessions/` before changing anything.
 
 - **Develop:** `uv sync`, `uv run pytest`, `uv run ruff check .`, `uv run ruff format --check .`
-- **Start of a session:** confirm the previous session's recording uploaded (`ox session list`),
-  and that `ox session status` shows this one recording.
+- **Start of a session:** priming is automatic through the repository's `SessionStart`
+  hooks (`.claude/settings.json` for Claude Code, `.codex/hooks.json` for Codex).
+  The injected `<ox-prime>` context satisfies the prime instructions above; do not run
+  a second manual prime. The user should only need to start the agent normally in this
+  repository, with project hooks enabled. If the payload is missing, report the startup
+  integration failure instead of asking the user to prime manually or running doctor.
+  Confirm the previous session's recording uploaded (`ox session list`), and that
+  `ox session status` shows this one recording. Claude's fresh-session path was verified
+  in [the session 1 review](docs/sessions/codex-session-1-review.html).
 - **After each session and commit**
   ([decision 0009](docs/decisions/0009-keep-review-context-in-sageox.md)):
   - record each new decision in `docs/decisions/` and check it with

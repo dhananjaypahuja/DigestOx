@@ -1,0 +1,590 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="ox-plan-slug" content="codex-session-1-review-95fc080">
+<title>Customer Pulse session 1: implementation review at 95fc080</title>
+<style>
+:root{
+  --bg:#0b0d0b; --panel:#111411; --panel2:#171b17; --hair:#212620; --hair2:#1d221d;
+  --ink:#f4f2ef; --dim:#b7b6a3; --faint:#8c8e7e;
+  --sage:#99c693; --gold:#d9b654; --amber:#c6a23c; --red:#d77e6c; --teal:#97aebd;
+}
+html[data-theme="light"]{
+  /* The page sheet is pure white — a plan is one big content card, the same
+     object the app renders its cards as. Inner surfaces step DOWN into cream
+     rather than up, inverting dark mode. */
+  --bg:#ffffff; --panel:#f7f5f2; --panel2:#f2f0ec; --hair:#e5e2df; --hair2:#ebe8e5;
+  --ink:#161812; --dim:#4a4d42; --faint:#6b6d60;
+  --sage:#3d643b; --gold:#836726; --amber:#644f1e; --red:#9f4838; --teal:#586f80;
+}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.65 Inter,sans-serif}
+main,nav{max-width:1060px;margin:auto;padding:24px}nav{position:sticky;top:0;background:var(--bg);z-index:2;border-bottom:1px solid var(--hair);display:flex;gap:10px;flex-wrap:wrap}
+h1,h2,h3{font-family:"Hedvig Letters Serif",serif;font-weight:400;line-height:1.2}h1{font-size:clamp(32px,5vw,52px);margin:16px 0}h2{font-size:29px}h3{font-size:23px}
+code,pre,.eyebrow{font-family:"Spline Sans Mono",monospace}code{overflow-wrap:anywhere}pre{white-space:pre-wrap;background:var(--bg);padding:16px;border:1px solid var(--hair)}
+p{max-width:86ch}a{color:var(--teal)}button,select{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--hair);border-radius:6px;padding:8px 13px;cursor:pointer}
+button[aria-selected="true"]{border-color:var(--sage);color:var(--sage)}button:focus-visible,select:focus-visible,summary:focus-visible{outline:2px solid var(--sage);outline-offset:3px}
+.eyebrow{color:var(--dim);font-size:12px;text-transform:uppercase;letter-spacing:.1em}.risk{color:var(--red)}.pass{color:var(--sage)}.warn{color:var(--amber)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}.card,details,.inspect{background:var(--panel);border:1px solid var(--hair);border-radius:8px;padding:20px;margin:16px 0}
+.card p{margin:8px 0}.large{font-size:27px}.muted{color:var(--dim)}summary{cursor:pointer}.finding>summary{font-size:18px}.finding h3{font-size:20px}
+.table-scroll{overflow-x:auto}table{width:100%;border-collapse:collapse}th,td{text-align:left;vertical-align:top;border-bottom:1px solid var(--hair);padding:12px}th{color:var(--dim)}
+.stages{width:100%;min-width:660px;height:auto;margin-top:18px}.stages rect{fill:var(--panel2);stroke:var(--hair)}.stages text{fill:var(--ink);font:18px Inter,sans-serif}.stages .small{fill:var(--dim);font-size:13px}.stages path{fill:none;stroke:var(--sage);stroke-width:2}
+.js .view[hidden]{display:none}.view{padding:12px 0 36px}.filter{display:flex;gap:12px;align-items:center}.finding[hidden]{display:none}footer{border-top:1px solid var(--hair);padding-top:24px;color:var(--dim);font-size:14px}
+@media print{nav,.filter,.interactive{display:none}.js .view[hidden]{display:block}details>*{display:block}.finding[hidden]{display:block}body{background:white;color:black}}
+</style>
+</head>
+<body>
+<nav aria-label="Review views">
+<button type="button" data-view="decision" aria-selected="true">Decision</button>
+<button type="button" data-view="findings" aria-selected="false">6 findings</button>
+<button type="button" data-view="evidence" aria-selected="false">Evidence &amp; handoff</button>
+<button type="button" id="theme">Light / dark</button>
+</nav>
+<main>
+<header><p class="eyebrow">DigestOx · 27 September 2026 PDT · reviewed commit 95fc080</p>
+<h1>Hold foundation sign-off.<br>Automatic priming passes.</h1>
+<p>Session 1 has a tested scaffold, but its schema still permits approval bypass and future-state leakage. Ask Claude for a focused foundation repair pass before building dependent stages. This is a review, not an implementation of those repairs.</p></header>
+<section class="view" id="decision" data-ox-section="Decision">
+<h2>Decision and scope</h2>
+<div class="grid">
+<div class="card"><p class="eyebrow">Foundation gate</p><p class="large risk">2 P1 blockers</p><p>Approval integrity and run-scoped issue state violate explicit design promises.</p></div>
+<div class="card"><p class="eyebrow">Additional repairs</p><p class="large warn">4 P2 findings</p><p>Merge cycles, publishing ownership records, JSON errors, and existing-directory privacy.</p></div>
+<div class="card"><p class="eyebrow">Existing validation</p><p class="large pass">81 tests pass</p><p>Lint and formatting pass too. These tests do not cover the reproduced failure paths.</p></div>
+<div class="card"><p class="eyebrow">Fresh Claude startup</p><p class="large pass">Automatic prime verified</p><p>Actual SessionStart success and full SageOx context; no manual prime or hook reinstall.</p></div>
+</div>
+<h3>Why passing tests are not enough</h3>
+<p>The current tests exercise direct content edits and ordinary drafts. The missing case crosses multiple state transitions. Select either sequence to inspect the difference.</p>
+<div class="inspect">
+<label for="scenario">Approval sequence </label><select id="scenario"><option value="expected">Required behavior</option><option value="observed">Reproduced bypass</option></select>
+<div class="table-scroll"><svg class="stages" viewBox="0 0 960 120" role="img" aria-labelledby="flow-title flow-desc">
+<title id="flow-title">Approval state sequence</title><desc id="flow-desc">Expected: approved version, create a new draft, review again. The selector exposes the reproduced downgrade and rewrite of the same approved row.</desc>
+<rect x="1" y="10" width="278" height="100" rx="6"/><text x="18" y="44">1 · Approved</text><text class="small" x="18" y="77">Content + approval hash fixed</text>
+<path d="M285 60H328 M320 53L329 60L320 67"/>
+<rect x="337" y="10" width="278" height="100" rx="6"/><text id="middle-title" x="354" y="44">2 · New draft version</text><text class="small" id="middle-text" x="354" y="77">Original approval retained</text>
+<path d="M622 60H665 M657 53L666 60L657 67"/>
+<rect x="673" y="10" width="286" height="100" rx="6"/><text id="last-title" x="690" y="44">3 · Review again</text><text class="small" id="last-text" x="690" y="77">Fresh approval for new content</text>
+</svg></div>
+<p id="scenario-note" aria-live="polite">Required: new content receives a new draft and fresh review.</p></div>
+<p>Observed instead: the same approved row accepts a downgrade clearing both approval fields, then accepts changed content. Separately, a draft with populated approval fields accepts a successful publish-step row. No external publication was attempted; publishing commands are not implemented yet.</p>
+<p>Scope: committed session 1 at <code>95fc080</code>, against <code>DESIGN.md</code>, the accepted decisions, and build-plan revision 3. Existing plan critiques marked resolved remain resolved; these are new implementation findings.</p>
+</section>
+<section class="view" id="findings" data-ox-section="Findings">
+<h2>Findings for Claude</h2>
+<p>All six are open. Priorities describe the risk in the intended product, which currently uses synthetic data only. Fixes below are recommended outcomes, not permission to change the approved design silently.</p>
+<div class="filter interactive"><label for="severity">Show </label><select id="severity"><option value="all">All findings</option><option value="P1">P1 — sign-off blockers</option><option value="P2">P2 — foundation hardening</option></select></div>
+<details class="finding" data-priority="P1" open><summary><span class="risk">P1 · R1</span> Approval can be cleared or forged</summary>
+<p><code>src/customer_pulse/migrations/0001_initial.sql:196–211,334–346</code></p>
+<p>The approved-content trigger only checks content updates while the old approval hash is present. An approved row can first become a draft with NULL approval fields, then have its content changed. Conversely, a draft may contain an approval hash, and the publish trigger checks that hash without checking status.</p>
+<pre>UPDATE digests SET status='draft', approved_sha256=NULL, approved_at=NULL
+WHERE digest_id='dg_0001';
+UPDATE digests SET content_md='changed after approval', content_sha256=:new_hash
+WHERE digest_id='dg_0001';
+-- Both succeed. A separate draft with matching approval fields also accepts
+-- a publish_steps row with step='doc_pushed', status='done'.</pre>
+<p>Contract: DESIGN section 9 requires edits to create a new draft version and rejects publication of anything unapproved. Freeze approval history and approved content together; define legal status transitions, make draft/approval fields consistent, and require an approved publishing state in insert/update guards. Test downgrade-then-edit, forged draft, and positive retry/supersession paths.</p>
+</details>
+<details class="finding" data-priority="P1"><summary><span class="risk">P1 · R2</span> Later issue imports rewrite historical run facts</summary>
+<p><code>src/customer_pulse/migrations/0001_initial.sql:405–411,481–490</code></p>
+<p><code>v_issue_latest</code> selects the highest import globally. The run-scoped closure view joins it without a run-bound observation/input snapshot. A fixed run therefore changes when later issue state arrives.</p>
+<pre>Issue closes: 2026-09-30
+Confirmed customer report: 2026-10-06
+Run cutoff: 2026-10-08 → reported-after-closure count = 1
+Add OPEN issue observation: 2026-10-09
+Query the SAME run → count = 0</pre>
+<p>Contract: DESIGN sections 3 and 5 forbid later issue state changes influencing a digest. A live latest-issue view is useful, but cannot be the source of historical run facts. Bind runs to their evidence snapshot and derive issue state at the cutoff, preserving unknown reopen history explicitly. Do not simply reject exports imported later: an export may contain valid earlier facts. Test that a later observation cannot change an existing run and that close/reopen ambiguity is handled honestly. LLM replay cannot repair SQL fact drift.</p>
+</details>
+<details class="finding" data-priority="P2"><summary><span class="warn">P2 · R3</span> A merge cycle silently removes themes and facts</summary>
+<p><code>src/customer_pulse/migrations/0001_initial.sql:150–165,370–402</code></p>
+<p>Only direct self-merges are rejected. A→B followed by B→A succeeds. The resolution CTE begins from roots, so the cycle has no resolved rows; assignments disappear through the inner join. Reproduced resolution rows: 2→0; fact rows: 1→0.</p>
+<p>Reject cycles and either enforce the supported maximum chain depth or remove silent truncation at depth 64. Add two-node, longer-cycle, and over-depth tests, while retaining positive merge-chain coverage. This protects the stable-theme identity contract before merge/split commands are built.</p>
+</details>
+<details class="finding" data-priority="P2"><summary><span class="warn">P2 · R4</span> Publishing ownership proof is incomplete and mutable</summary>
+<p><code>src/customer_pulse/migrations/0001_initial.sql:320–346,513–518</code></p>
+<p>A successful <code>doc_pushed</code> row accepts NULL document hash and team commit, yet becomes <code>v_last_published_doc</code>. Updating an older successful row's attempt count and <code>updated_at</code> also makes it appear newer than a later real push.</p>
+<p>Require complete proof for successful pushes and preserve an immutable completion ordering, for example immutable success events distinct from mutable retry bookkeeping. Test missing proof and updating an older attempt after a newer completed push. This is needed for DESIGN section 9's ownership check, not a change to its approved sync-before-check publishing order.</p>
+</details>
+<details class="finding" data-priority="P2"><summary><span class="warn">P2 · R5</span> Expected operational errors escape JSON output</summary>
+<p><code>src/customer_pulse/cli.py:73–83</code></p>
+<p>The CLI catches only <code>PulseError</code>. With a file at <code>.pulse</code>, <code>init --json</code> exits 1 with empty stdout and a <code>FileExistsError</code> (a traceback in a terminal invocation), instead of the promised structured error. Filesystem and SQLite operational failures need boundary translation to stable codes.</p>
+<p>Add JSON-mode coverage for a non-directory state path, denied I/O, and corrupt/locked databases. Preserve actionable human output and do not hide unexpected programming errors behind a generic success-shaped result.</p>
+</details>
+<details class="finding" data-priority="P2"><summary><span class="warn">P2 · R6</span> Existing state directories bypass privacy protection</summary>
+<p><code>src/customer_pulse/cli.py:114–117</code></p>
+<p><code>mkdir(mode=0o700, exist_ok=True)</code> does not change an existing directory. With a pre-existing 0755 state directory, init succeeds and retains 0755; the new database is 0644 under umask 022. Other local users could read the evidence wherever parent-directory permissions permit access.</p>
+<p>Enforce private database creation and validate directory privacy, handling existing databases and SQLite companion files consistently. Reject unsafe configurations or obtain consent rather than silently changing arbitrary user-selected directories. Test existing permissive directories and existing database files, not just newly created directories.</p>
+</details>
+</section>
+<section class="view" id="evidence" data-ox-section="Evidence and handoff">
+<h2>Verified evidence</h2>
+<div class="table-scroll"><table><thead><tr><th>Check</th><th>Observed result</th></tr></thead><tbody>
+<tr><td><code>.venv/bin/pytest -q</code></td><td>81 passed at reviewed commit 95fc080.</td></tr>
+<tr><td><code>.venv/bin/ruff check .</code></td><td>All checks passed.</td></tr>
+<tr><td><code>.venv/bin/ruff format --check .</code></td><td>44 files already formatted.</td></tr>
+<tr><td>Four schema reproductions</td><td>Fresh in-memory SQLite databases, FK enforcement on, committed migration executed verbatim. All four described defects asserted.</td></tr>
+<tr><td>Two CLI reproductions</td><td>Disposable temporary directories and CliRunner. Empty JSON error output; directory 0755 and database 0644 confirmed.</td></tr>
+<tr><td>Independent review</td><td>Separate schema and Python-foundation reviewers; no product-code edits, dependency installation, live customer data, or external publishing tests.</td></tr>
+</tbody></table></div>
+<h3>Automatic startup — verified, not merely configured</h3>
+<p>Claude Code 2.1.283 was launched in this repository with <code>--init-only</code>, a unique session ID, and debug logging. Parent SageOx identity variables were removed from the child launch so it could not reuse this review's identity. This runs startup hooks and exits without a model conversation, as documented by <a href="https://code.claude.com/docs/en/hooks#setup">Claude Code's Setup reference</a>.</p>
+<pre>claude --init-only --session-id b395820e-03ce-4dbf-bd7d-ddbf5eb3d861 \
+  --debug-file /private/tmp/digestox-startup-check.oTUMbn/claude-startup.log &lt;/dev/null
+
+Exit code: 0
+SessionStart:startup: success
+Payload: &lt;ox-prime&gt; present; status="fresh"; team_synced="true"; recording="true"
+Fresh agent: Oxu3Xv
+SessionEnd hook: observed
+ox session list: startup-test recording is uploaded</pre>
+<p>The debug path is temporary; the verified result above is preserved here. Startup-test recording: <a href="https://sageox.ai/c/ses_01a0e578-2e45-700b-9ec6-67f50badcb87">fresh Claude startup verification</a>. No direct manual prime, doctor, recording repair, or hook configuration change was performed.</p>
+<p>The existing tracked <code>.claude/settings.json</code> contains one SageOx SessionStart command with an empty matcher, and <code>ox</code> resolves at <code>/opt/homebrew/bin/ox</code> in a non-interactive shell. User settings do not add duplicate SageOx hooks. No inspected settings disable hooks. <code>CLAUDE.md</code> points to <code>AGENTS.md</code>.</p>
+<p>Scope: normal Claude startup in this initialized repository with project settings/hooks enabled. Safe/restricted modes, other launch environments, and an uninitialized Bivo repository are not covered by this test. The user need not run a manual prime. AGENTS.md now states explicitly that the hook payload satisfies its startup-prime markers. Codex also delivered a fresh hook payload during this review; a separate fresh-Codex launch was not tested.</p>
+<h3>Claude's next action</h3>
+<ol><li>Read this review and the approved plan. Keep the publishing order and earlier resolved plan decisions unchanged.</li><li>Repair R1 and R2, and close R3–R6 in the same focused foundation hardening pass where practical. Design the historical-evidence representation explicitly rather than bolting a time filter onto the live view.</li><li>Add regression tests for each reproduced failure. Convert the temporary repro assertions, which currently demonstrate acceptance of bad states, into tests requiring the correct rejection or stable historical result.</li><li>Preserve migration history: the runner rejects edits to applied migration 0001. Use a new migration, or ask before any explicit disposable-database reset/rebaseline. Never erase state silently.</li><li>Run the full tests and lint checks, checkpoint the actual commit and updated open/resolved findings in SageOx, then request re-review. Session 2's Bivo initialization still needs the existing explicit approval; this review does not grant it.</li></ol>
+<h3>Retrieval and provenance</h3>
+<pre>ox plan view codex-session-1-review-95fc080
+ox plan view 2026-09-27-session-1-foundation
+ox plan view codex-plan-review-handoff-9b511ef
+ox plan view 2026-09-27-customer-pulse-v1-build-plan</pre>
+<p>Reviewed source: <code>95fc080</code> (session 1 record refresh), with code commits <code>5e2c8f6</code>, <code>d55c575</code>, <code>db6d1f0</code>, and <code>0bd42c7</code>. Review recording: <a href="https://sageox.ai/c/ses_01a0e56c-5e4e-7032-838a-30ee86d2c27c">Codex implementation review</a>; earlier context: <a href="https://sageox.ai/c/ses_01a0e4f5-4293-721e-aaf8-78378a409dd4">plan review and handoff discussion</a>.</p>
+<p>SageOx consultation located the recent records; enrichment surfaced the existing ownership, thin-slice, no-mid-session-prime, and handoff decisions. Those records shaped the review gates and the safe startup test. Only the reviewed startup-test and prior Codex recording were confirmed uploaded in the session list; do not infer that all Claude foundation recordings are uploaded.</p>
+<p>Artifact checks: pre-save review lint passed the visual/structure checks and warned that the generated SageOx wordmark is absent from the authored page. The standard renderer owns that chrome; it was not hand-authored. Browser visual verification of the local file was blocked by the browser tool's URL policy, and no workaround was attempted. Product test/lint results above are independent of this presentation warning.</p>
+<p id="checkpoint">Review documentation commit: the ledger's post-commit checkpoint records it without a recursive bookkeeping commit. Local ledger retrieval will be verified after saving. Remote artifact sync and semantic-search indexing are separate and are not proven by a successful local save.</p>
+</section>
+<details><summary>Implementation notes</summary>
+<p>These exact reproduction scripts were run independently by the main reviewer. They demonstrate the reviewed defects, not passing specifications for repaired code. The schema script reads migration 0001 directly; when adding migration 0002, convert these cases into regression tests against the migrated database.</p>
+<h3>Schema reproduction (Python standard library)</h3>
+<p>Save the following to a temporary script and run <code>python3 script.py /absolute/path/to/DigestOx</code>. It uses only in-memory databases.</p>
+<pre><code>#!/usr/bin/env python3
+"""Runnable reproductions for four Customer Pulse migration-0001 review findings.
+
+Usage:
+    python3 /private/tmp/customer_pulse_schema_repros.py [REPO_ROOT]
+
+The script uses a fresh in-memory database for every case and executes the repository's
+committed migration verbatim.  It does not write to the repository or to a database file.
+
+Important cutoff distinction: ``v_issue_latest`` may reasonably be useful as a live/current
+view.  The defect reproduced below is that the run-scoped
+``v_run_reported_after_closure`` consumes that mutable live view, so adding an issue state
+change after a run's cutoff changes the facts returned for that already-defined run.  This is
+contrary to DESIGN.md's explicit promise that later issue state changes cannot influence a
+digest.  LLM replay does not repair this: replay freezes model responses, while this flag is a
+SQL-computed fact and the full rendered request itself depends on the SQL facts.
+"""
+
+from __future__ import annotations
+
+import sqlite3
+import sys
+from pathlib import Path
+
+
+REPO = Path(sys.argv[1]) if len(sys.argv) &gt; 1 else Path("/Users/pahujad/Workbench/DigestOx")
+MIGRATION = REPO / "src/customer_pulse/migrations/0001_initial.sql"
+
+T0 = "2026-10-01T00:00:00.000000Z"
+T1 = "2026-10-08T00:00:00.000000Z"
+T2 = "2026-10-09T00:00:00.000000Z"
+T3 = "2026-10-10T00:00:00.000000Z"
+H_A = "a" * 64
+H_B = "b" * 64
+H_C = "c" * 64
+H_D = "d" * 64
+
+
+def database() -&gt; sqlite3.Connection:
+    if not MIGRATION.is_file():
+        raise SystemExit(f"migration not found: {MIGRATION}")
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+    conn.executescript(MIGRATION.read_text(encoding="utf-8"))
+    return conn
+
+
+def add_run(conn: sqlite3.Connection, run_id: int = 1) -&gt; None:
+    conn.execute(
+        """
+        INSERT INTO runs (
+            run_id, kind, mode, window_start, window_end, cutoff, timezone,
+            started_at, status
+        ) VALUES (?, 'digest', 'offline', ?, ?, ?, 'UTC', ?, 'succeeded')
+        """,
+        (run_id, T0, T1, T1, T1),
+    )
+
+
+def add_digest(
+    conn: sqlite3.Connection,
+    digest_id: str,
+    content: str,
+    content_hash: str,
+    *,
+    status: str = "approved",
+    previous: str | None = None,
+) -&gt; None:
+    approved_hash = content_hash if status == "approved" else None
+    approved_at = T1 if approved_hash else None
+    conn.execute(
+        """
+        INSERT INTO digests (
+            digest_id, run_id, previous_digest_id, content_md, content_sha256,
+            status, approved_sha256, approved_at, created_at
+        ) VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            digest_id,
+            previous,
+            content,
+            content_hash,
+            status,
+            approved_hash,
+            approved_at,
+            T1,
+        ),
+    )
+
+
+def approval_can_be_revoked_or_forged() -&gt; None:
+    conn = database()
+    add_run(conn)
+
+    add_digest(conn, "dg_0001", "approved content", H_A)
+    conn.execute(
+        """
+        UPDATE digests
+        SET status = 'draft', approved_sha256 = NULL, approved_at = NULL
+        WHERE digest_id = 'dg_0001'
+        """
+    )
+    conn.execute(
+        """
+        UPDATE digests
+        SET content_md = 'changed after approval', content_sha256 = ?
+        WHERE digest_id = 'dg_0001'
+        """,
+        (H_B,),
+    )
+    downgraded = conn.execute(
+        "SELECT status, content_md, approved_sha256 FROM digests WHERE digest_id = 'dg_0001'"
+    ).fetchone()
+    assert tuple(downgraded) == ("draft", "changed after approval", None)
+
+    # The CHECK is only one-way, so a draft is allowed to carry approval fields.
+    conn.execute(
+        """
+        INSERT INTO digests (
+            digest_id, run_id, content_md, content_sha256, status,
+            approved_sha256, approved_at, created_at
+        ) VALUES ('dg_0002', 1, 'forged draft', ?, 'draft', ?, ?, ?)
+        """,
+        (H_C, H_C, T1, T1),
+    )
+    conn.execute(
+        """
+        INSERT INTO publish_steps (
+            digest_id, step, status, approved_sha256, updated_at
+        ) VALUES ('dg_0002', 'doc_pushed', 'done', ?, ?)
+        """,
+        (H_C, T1),
+    )
+    forged = conn.execute(
+        """
+        SELECT d.status, p.step, p.status
+        FROM digests AS d JOIN publish_steps AS p USING (digest_id)
+        WHERE d.digest_id = 'dg_0002'
+        """
+    ).fetchone()
+    assert tuple(forged) == ("draft", "doc_pushed", "done")
+    print(
+        "[P1 approval] approved digest became mutable:",
+        tuple(downgraded),
+        "; unapproved draft accepted publish:",
+        tuple(forged),
+    )
+    conn.close()
+
+
+def future_issue_state_rewrites_a_run() -&gt; None:
+    conn = database()
+    conn.executemany(
+        """
+        INSERT INTO imports (import_id, source, file_name, content_sha256, imported_at)
+        VALUES (?, ?, ?, ?, ?)
+        """,
+        [
+            (1, "github", "issues-before.json", H_A, "2026-10-07T00:00:00.000000Z"),
+            (2, "slack", "slack.json", H_B, "2026-10-07T00:00:00.000000Z"),
+        ],
+    )
+    conn.execute(
+        """
+        INSERT INTO issues (
+            issue_number, title, body_redacted, url, created_at,
+            first_import_id, last_import_id
+        ) VALUES (
+            18, 'Issue', 'body', 'https://invalid.example/18',
+            '2026-09-01T00:00:00.000000Z', 1, 1
+        )
+        """
+    )
+    conn.execute(
+        """
+        INSERT INTO issue_observations (
+            issue_number, import_id, state, state_reason, closed_at, observed_at
+        ) VALUES (
+            18, 1, 'CLOSED', 'COMPLETED',
+            '2026-09-30T00:00:00.000000Z', '2026-10-07T00:00:00.000000Z'
+        )
+        """
+    )
+    conn.execute(
+        """
+        INSERT INTO signals (
+            signal_id, source, source_key, occurred_at, text_redacted, raw_sha256,
+            first_import_id, last_import_id
+        ) VALUES (
+            1, 'slack', 'C1:1', '2026-10-06T00:00:00.000000Z', 'report', ?, 2, 2
+        )
+        """,
+        (H_C,),
+    )
+    conn.execute(
+        """
+        INSERT INTO corrections (correction_id, created_at, command, args_json)
+        VALUES (1, '2026-10-07T00:00:00.000000Z', 'link confirm', '{}')
+        """
+    )
+    conn.execute(
+        """
+        INSERT INTO links (
+            signal_id, issue_number, relation, found_by, review_status,
+            correction_id, created_at
+        ) VALUES (
+            1, 18, 'reports', 'model', 'confirmed', 1,
+            '2026-10-07T00:00:00.000000Z'
+        )
+        """
+    )
+    add_run(conn)
+
+    before = conn.execute(
+        "SELECT count(*) FROM v_run_reported_after_closure WHERE run_id = 1"
+    ).fetchone()[0]
+    assert before == 1
+
+    # This observation is after the run's fixed 2026-10-08 cutoff.
+    conn.execute(
+        """
+        INSERT INTO imports (import_id, source, file_name, content_sha256, imported_at)
+        VALUES (3, 'github', 'issues-after.json', ?, ?)
+        """,
+        (H_D, T2),
+    )
+    conn.execute(
+        """
+        INSERT INTO issue_observations (issue_number, import_id, state, observed_at)
+        VALUES (18, 3, 'OPEN', ?)
+        """,
+        (T2,),
+    )
+    conn.execute("UPDATE issues SET last_import_id = 3 WHERE issue_number = 18")
+
+    after = conn.execute(
+        "SELECT count(*) FROM v_run_reported_after_closure WHERE run_id = 1"
+    ).fetchone()[0]
+    assert after == 0
+    print(
+        "[P1 cutoff] same run_id=1 reported-after-closure count changed",
+        f"{before} -&gt; {after} after a post-cutoff issue observation",
+    )
+    conn.close()
+
+
+def merge_cycle_erases_theme_facts() -&gt; None:
+    conn = database()
+    add_run(conn)
+    conn.executemany(
+        "INSERT INTO themes (theme_id, title, created_at) VALUES (?, ?, ?)",
+        [("th_0001", "A", T0), ("th_0002", "B", T0)],
+    )
+    conn.execute(
+        """
+        INSERT INTO imports (import_id, source, file_name, content_sha256, imported_at)
+        VALUES (1, 'slack', 'slack.json', ?, ?)
+        """,
+        (H_A, T0),
+    )
+    conn.execute(
+        """
+        INSERT INTO signals (
+            signal_id, source, source_key, occurred_at, text_redacted, raw_sha256,
+            first_import_id, last_import_id
+        ) VALUES (
+            1, 'slack', 'C1:1', '2026-10-06T00:00:00.000000Z', 'signal', ?, 1, 1
+        )
+        """,
+        (H_B,),
+    )
+    conn.execute(
+        """
+        INSERT INTO assignments (
+            assignment_id, signal_id, theme_id, set_by, run_id, created_at
+        ) VALUES (1, 1, 'th_0001', 'model', 1, ?)
+        """,
+        (T1,),
+    )
+    roots_before = conn.execute("SELECT count(*) FROM v_theme_resolution").fetchone()[0]
+    facts_before = conn.execute(
+        "SELECT count(*) FROM v_run_theme_facts WHERE run_id = 1"
+    ).fetchone()[0]
+    assert (roots_before, facts_before) == (2, 1)
+
+    conn.execute(
+        "UPDATE themes SET status = 'merged', merged_into = 'th_0002' WHERE theme_id = 'th_0001'"
+    )
+    conn.execute(
+        "UPDATE themes SET status = 'merged', merged_into = 'th_0001' WHERE theme_id = 'th_0002'"
+    )
+    roots_after = conn.execute("SELECT count(*) FROM v_theme_resolution").fetchone()[0]
+    facts_after = conn.execute(
+        "SELECT count(*) FROM v_run_theme_facts WHERE run_id = 1"
+    ).fetchone()[0]
+    assert (roots_after, facts_after) == (0, 0)
+    print(
+        "[P2 merge cycle] resolution rows and run fact rows changed",
+        f"({roots_before}, {facts_before}) -&gt; ({roots_after}, {facts_after})",
+    )
+    conn.close()
+
+
+def ownership_anchor_is_incomplete_and_mutable() -&gt; None:
+    conn = database()
+    add_run(conn)
+    add_digest(conn, "dg_0001", "one", H_A)
+    add_digest(conn, "dg_0002", "two", H_B, previous="dg_0001")
+
+    conn.execute(
+        """
+        INSERT INTO publish_steps (
+            digest_id, step, status, approved_sha256, updated_at
+        ) VALUES ('dg_0001', 'doc_pushed', 'done', ?, ?)
+        """,
+        (H_A, T1),
+    )
+    incomplete = conn.execute(
+        "SELECT digest_id, doc_sha256, team_commit FROM v_last_published_doc"
+    ).fetchone()
+    assert tuple(incomplete) == ("dg_0001", None, None)
+
+    # Fill the missing proof, then record a later successful push for dg_0002.
+    conn.execute(
+        """
+        UPDATE publish_steps
+        SET doc_sha256 = ?, team_commit = ?
+        WHERE digest_id = 'dg_0001' AND step = 'doc_pushed'
+        """,
+        ("1" * 64, "1" * 40),
+    )
+    conn.execute(
+        """
+        INSERT INTO publish_steps (
+            digest_id, step, status, approved_sha256, doc_sha256, team_commit, updated_at
+        ) VALUES ('dg_0002', 'doc_pushed', 'done', ?, ?, ?, ?)
+        """,
+        (H_B, "2" * 64, "2" * 40, T2),
+    )
+    correct_latest = conn.execute("SELECT digest_id FROM v_last_published_doc").fetchone()[0]
+    assert correct_latest == "dg_0002"
+
+    # A harmless-looking update of the older success rewrites which push the view calls last.
+    conn.execute(
+        """
+        UPDATE publish_steps
+        SET attempts = 2, updated_at = ?
+        WHERE digest_id = 'dg_0001' AND step = 'doc_pushed'
+        """,
+        (T3,),
+    )
+    rewritten_latest = conn.execute("SELECT digest_id FROM v_last_published_doc").fetchone()[0]
+    assert rewritten_latest == "dg_0001"
+    print(
+        "[P2 ownership] accepted incomplete anchor:",
+        tuple(incomplete),
+        "; latest changed after stale-row update:",
+        f"{correct_latest} -&gt; {rewritten_latest}",
+    )
+    conn.close()
+
+
+def main() -&gt; None:
+    approval_can_be_revoked_or_forged()
+    future_issue_state_rewrites_a_run()
+    merge_cycle_erases_theme_facts()
+    ownership_anchor_is_incomplete_and_mutable()
+    print("All four reproductions passed: the current schema accepted every invalid transition.")
+
+
+if __name__ == "__main__":
+    main()
+</code></pre>
+<h3>CLI reproduction (project virtual environment)</h3>
+<p>Save the following to a temporary script and run it using <code>.venv/bin/python</code> from the project. All state fixtures use disposable temporary directories.</p>
+<pre><code>"""Reproduce session-1 CLI findings using disposable state only."""
+
+import json
+import stat
+from contextlib import chdir
+from pathlib import Path
+from tempfile import TemporaryDirectory
+
+from customer_pulse.cli import app
+from typer.testing import CliRunner
+
+
+def invoke_init():
+    return CliRunner().invoke(
+        app,
+        ["init", "--json"],
+        env={"PULSE_CONFIG": "", "PULSE_NOW": "2026-10-12T17:00:00Z"},
+    )
+
+
+with TemporaryDirectory(prefix="pulse-cli-error-") as temp, chdir(temp):
+    Path(".pulse").touch()
+    result = invoke_init()
+    try:
+        json.loads(result.stdout)
+        valid_json = True
+    except json.JSONDecodeError:
+        valid_json = False
+    print("Existing file blocks state directory:")
+    print(f"  exit_code={result.exit_code}, valid_json={valid_json}")
+    print(f"  stdout={result.stdout!r}")
+    print(f"  exception={result.exception!r}")
+
+with TemporaryDirectory(prefix="pulse-cli-permissions-") as temp, chdir(temp):
+    state = Path(".pulse")
+    state.mkdir()
+    state.chmod(0o755)
+    result = invoke_init()
+    print("Pre-existing state directory with mode 0755:")
+    print(f"  exit_code={result.exit_code}")
+    print(f"  state_dir_mode={stat.S_IMODE(state.stat().st_mode):04o}")
+    print(f"  database_mode={stat.S_IMODE((state / 'pulse.db').stat().st_mode):04o}")
+</code></pre>
+</details>
+<footer><p>This review records verified defects and recommendations. It does not implement the fixes, approve session 2 initialization, or authorize pushes, team-context imports, or recording repair.</p></footer>
+</main>
+<script>
+document.documentElement.classList.add('js');
+const tabs=[...document.querySelectorAll('[data-view]')];
+function show(id){document.querySelectorAll('.view').forEach(s=>s.hidden=s.id!==id);tabs.forEach(b=>b.setAttribute('aria-selected',String(b.dataset.view===id)));}
+tabs.forEach(b=>b.addEventListener('click',()=>show(b.dataset.view)));show('decision');
+document.querySelector('#theme').addEventListener('click',()=>{document.documentElement.dataset.theme=document.documentElement.dataset.theme==='dark'?'light':'dark';});
+document.querySelector('#severity').addEventListener('change',e=>document.querySelectorAll('.finding').forEach(d=>d.hidden=e.target.value!=='all'&&d.dataset.priority!==e.target.value));
+document.querySelector('#scenario').addEventListener('change',e=>{const bad=e.target.value==='observed';document.querySelector('#middle-title').textContent=bad?'2 · Clear approval':'2 · New draft version';document.querySelector('#middle-text').textContent=bad?'Same row: draft + NULL approval':'Original approval retained';document.querySelector('#last-title').textContent=bad?'3 · Rewrite same row':'3 · Review again';document.querySelector('#last-text').textContent=bad?'Content update now succeeds':'Fresh approval for new content';document.querySelector('#scenario-note').textContent=bad?'Reproduced: both updates succeed; the original approved version is lost.':'Required: new content receives a new draft and fresh review.';});
+</script>
+</body>
+</html>
