@@ -12,6 +12,7 @@ Each draft says how the problem was found. "Observed" means it happened on this 
 |---|---|---|
 | [`session.uploaded` hooks never fire](session-uploaded-never-fires.md) | from source | high: a documented hook is silent |
 | [A re-prime inside a session started a new recording](reprime-started-a-new-recording.md) | observed | high: recording continuity |
+| [`ox init` skips an existing `.claude/settings.json`](init-skips-an-existing-claude-settings-file.md) | observed | high: Claude Code sessions go unrecorded without a warning |
 | [`ox agent prime` waits forever on an open stdin](prime-waits-on-open-stdin.md) | observed | medium |
 | [File-change murmurs ignore the murmuring setting](file-change-murmurs-ignore-the-setting.md) | from source, and one observed murmur | medium |
 | [`ox hooks test` sends a zero timestamp](hooks-test-sends-a-zero-timestamp.md) | observed | low |

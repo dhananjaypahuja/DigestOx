@@ -436,6 +436,13 @@ five things:
 - its transcript exposes write and edit actions with paths
 - DigestOx sessions never appear in Bivo's list, and Bivo's never appear in DigestOx's
 
+`scripts/ox_preflight.py` implements it (session 2). A trailer resolves when the session ID it
+names appears in the session's `ox session view --json --metadata`. The changed files are the
+paths git lists for that commit. The transcript check needs a write or edit action on one of
+those files, and it reads the tool-call shapes that Claude Code, ox, and Codex record. An
+uploaded session can arrive as a stub, so the preflight downloads it once (`ox session
+download`) before reading it.
+
 ## 11. Evaluation
 
 - **Answers kept apart.** The correct answers (each record's theme and links) live in a
@@ -483,6 +490,12 @@ It lives at `~/Workbench/bivo-platform`, local only: no GitHub remote, never pus
 up with `ox init` in the same SageOx team as this repo, so its session recordings sync to the
 team while its commits stay on this machine.
 
+Each code area is a package (`bivo/wearable_sync/`, …) with `router.py`, `schemas.py`, and
+`service.py`, and its tests sit in the matching `tests/` folder. So each code area is exactly
+two path prefixes, `bivo/<area>/` and `tests/<area>/`, which is what `code_area_paths` expects.
+`bivo/api/` assembles the routers, and `bivo/worker/` runs wearable sync outside the request
+path. The code uses only the standard library.
+
 **Conventions borrowed from TraceRoot.** To feel like a real startup's repo, Bivo borrows
 engineering conventions from TraceRoot's open-source repository (`traceroot-ai/traceroot`,
 Apache-2.0 outside its `ee/` directories, reviewed at commit `d786ae7`):
@@ -515,6 +528,11 @@ valid in their native formats.
 - Pulse's own previous digest in team context, which must not count as evidence
 
 A small check script confirms every planted case is present.
+
+Bivo's code carries one planted defect, for session 7's fresh agent to find from the customer
+symptom: wearable sync fetches only the first page of a provider's workouts, at most 50, and
+then advances the member's sync time, so on a busy day the rest never arrive. Its tests pass,
+because they cover single-page syncs only.
 
 ## 13. Decisions
 
@@ -567,6 +585,9 @@ automatic issue creation or customer replies, and PDFs or other arbitrary docume
 | Sessions and commits | `prepare-commit-msg` adds the `SageOx-Session:` trailer; `post-commit` and `post-rewrite` maintain `ProducedCommits`; the trailer wins on disagreement; squash merges lose it | `docs/specs/session-commit-linkage.md` | Confirmed |
 | `ox doctor` | Even without flags it starts the daemon and applies checks marked `FixLevelAuto`, which can include an automatic "stop tracking ox-managed agent files" commit. `--force-session-uploads` and `--gc` also make changes | `cmd/ox/doctor.go`, `doctor_types.go`, `doctor_legacy_ox_files.go` | **Changed: not read-only** |
 | `ox agent prime` | Reads hook JSON from stdin and waits if stdin is an open pipe (run it with `</dev/null`). A second prime in the same agent session is a compact re-prime without the team-docs catalog. In the first session, a re-prime started a new recording for the same agent. In session 1b, Claude Code's context compaction re-ran prime through its SessionStart hook, which finalized and uploaded the running recording (20h 35m, 517 entries) and started a new one | live, sessions 1 and 1b | New |
+| `ox init` | Skips an existing project `.claude/settings.json`, installing none of its six Claude Code hooks while reporting success; `ox integrate list` then shows Claude Code as not integrated. Merging the hooks by hand fixes it. Codex and git hooks install either way | live, session 2 | **New: upstream draft written** |
+| Trailers across repos | `ox hooks commit-msg` takes the recording that is active in the committing repo: commits made in Bivo from a DigestOx session carry no `SageOx-Session:` trailer | live, session 2 | New |
+| Uploaded sessions | `ox session view <name>` reported "not found" for an uploaded session. Its help says sessions can arrive as metadata-only stubs, and `ox session download <name>` fetches their content | live, session 2 (download not yet exercised) | New |
 
 **Live tests in the first session:**
 
