@@ -24,6 +24,10 @@ from customer_pulse.timewin import to_db
 # STRICT tables need 3.37; json_valid in CHECK constraints is built in from 3.38.
 MIN_SQLITE_VERSION = (3, 38, 0)
 
+# How long a command waits for another Pulse process to release the database before it
+# reports `database_locked`. Used by every connection, read-write and read-only.
+LOCK_WAIT_SECONDS = 5.0
+
 _MIGRATION_NAME = re.compile(r"(\d{4})_([a-z0-9_]+)\.sql")
 
 _CREATE_SCHEMA_MIGRATIONS = """
@@ -84,10 +88,9 @@ def connect(path: Path) -> sqlite3.Connection:
     The connection is in autocommit mode; callers manage transactions explicitly.
     """
     check_sqlite_version()
-    conn = sqlite3.connect(path, isolation_level=None)
+    conn = sqlite3.connect(path, isolation_level=None, timeout=LOCK_WAIT_SECONDS)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
-    conn.execute("PRAGMA busy_timeout = 5000")
     return conn
 
 
@@ -177,7 +180,7 @@ def inspect(path: Path) -> dict[str, Any]:
         return report
     check_sqlite_version()
     uri = path.resolve().as_uri() + "?mode=ro"
-    with closing(sqlite3.connect(uri, uri=True)) as conn:
+    with closing(sqlite3.connect(uri, uri=True, timeout=LOCK_WAIT_SECONDS)) as conn:
         conn.row_factory = sqlite3.Row
         if not _table_exists(conn, "schema_migrations"):
             return report

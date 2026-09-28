@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import sqlite3
 from collections.abc import Callable
 from contextlib import closing
 from dataclasses import dataclass
@@ -12,7 +13,7 @@ from typing import Annotated, Any
 
 import typer
 
-from customer_pulse import __version__, db
+from customer_pulse import __version__, db, state
 from customer_pulse.clock import clock_from_env
 from customer_pulse.config import Config, load_config
 from customer_pulse.errors import PulseError
@@ -74,17 +75,72 @@ def _run(
         config = load_config(ctx.obj.config_path, Path.cwd())
         result = action(config)
     except PulseError as err:
-        if as_json:
-            typer.echo(json.dumps({"error": err.to_dict()}, indent=2, sort_keys=True))
-        else:
-            typer.echo(f"error: {err.message}", err=True)
-            if err.hint:
-                typer.echo(f"hint: {err.hint}", err=True)
-        raise typer.Exit(code=1) from err
+        _fail(err, as_json)
+    except (OSError, sqlite3.Error) as exc:
+        # Expected operational failures get a stable code too. Anything else is a bug and is
+        # left to raise, so it can't hide behind a tidy error message.
+        _fail(operational_error(exc), as_json, cause=exc)
     if as_json:
         typer.echo(json.dumps(result, indent=2, sort_keys=True))
     else:
         render(result)
+
+
+def _fail(err: PulseError, as_json: bool, cause: BaseException | None = None) -> None:
+    if as_json:
+        typer.echo(json.dumps({"error": err.to_dict()}, indent=2, sort_keys=True))
+    else:
+        typer.echo(f"error: {err.message}", err=True)
+        if err.hint:
+            typer.echo(f"hint: {err.hint}", err=True)
+    raise typer.Exit(code=1) from (cause or err)
+
+
+def operational_error(exc: OSError | sqlite3.Error) -> PulseError:
+    """Translate a filesystem or SQLite failure into a stable, actionable error."""
+    if isinstance(exc, sqlite3.Error):
+        text = str(exc)
+        lowered = text.lower()
+        if "locked" in lowered or "busy" in lowered:
+            return PulseError(
+                "database_locked",
+                "the database is locked by another process",
+                hint="wait for the other pulse command to finish, then try again",
+            )
+        if "unable to open" in lowered:
+            return PulseError(
+                "database_unavailable",
+                f"the database can't be opened: {text}",
+                hint="check that the state directory exists and that you can write to it",
+            )
+        if "readonly" in lowered or "read-only" in lowered:
+            return PulseError(
+                "permission_denied",
+                f"the database is read-only: {text}",
+                hint="check the permissions of the state directory and the database",
+            )
+        if isinstance(exc, sqlite3.DatabaseError) and not isinstance(exc, sqlite3.OperationalError):
+            return PulseError(
+                "database_unreadable",
+                f"the database can't be read: {text}",
+                hint="if it's corrupt or not a Customer Pulse database, move it aside and run "
+                "`pulse init`",
+            )
+        return PulseError("database_error", f"database error: {text}")
+    where = f": {exc.filename}" if exc.filename else ""
+    if isinstance(exc, FileExistsError | NotADirectoryError):
+        return PulseError(
+            "state_path_not_a_directory",
+            f"a file is in the way of the state directory{where}",
+            hint="move it aside, or set pulse.state_dir to another path",
+        )
+    if isinstance(exc, PermissionError):
+        return PulseError(
+            "permission_denied",
+            f"permission denied{where}",
+            hint="check the permissions of the state directory and its files",
+        )
+    return PulseError("filesystem_error", f"{exc.strerror or exc}{where}")
 
 
 def _display_path(text: str) -> str:
@@ -111,9 +167,9 @@ def init(ctx: typer.Context, as_json: JsonFlag = False) -> None:
 def _init(config: Config) -> Result:
     clock = clock_from_env(os.environ)
     db.check_sqlite_version()
-    created = not config.db_path.exists()
-    # The database holds (redacted) customer evidence, so keep it private to this user.
-    config.state_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+    # The database holds customer evidence: create it private, and refuse existing state that
+    # other users can read rather than silently changing its permissions.
+    created = state.prepare(config)
     with closing(db.connect(config.db_path)) as conn:
         applied = db.migrate(conn, clock)
         version = db.schema_version(conn)
@@ -159,15 +215,18 @@ def _status(config: Config) -> Result:
         },
         "counts": database["counts"],
         "database": {
-            key: database[key]
-            for key in (
-                "initialized",
-                "latest_schema_version",
-                "migrations_modified",
-                "migrations_pending",
-                "path",
-                "schema_version",
-            )
+            **{
+                key: database[key]
+                for key in (
+                    "initialized",
+                    "latest_schema_version",
+                    "migrations_modified",
+                    "migrations_pending",
+                    "path",
+                    "schema_version",
+                )
+            },
+            "privacy_problems": state.privacy_problems(config),
         },
         "last_digest": database["last_digest"],
         "pulse_version": __version__,
@@ -180,6 +239,8 @@ def _render_status(result: Result) -> None:
     source = _display_path(config["file"]) if config["file"] else "no pulse.toml, using defaults"
     typer.echo(f"  config    {source}; timezone {config['timezone']}")
     where = _display_path(database["path"])
+    for problem in database["privacy_problems"]:
+        typer.echo(f"  warning   other users can read local state: {problem}")
     if not database["initialized"]:
         typer.echo(f"  database  {where} is not initialized. Run `pulse init`.")
         return

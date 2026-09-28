@@ -10,8 +10,10 @@ from itertools import count
 from pathlib import Path
 
 import pytest
+from typer.testing import CliRunner, Result
 
 from customer_pulse import db
+from customer_pulse.cli import app
 from customer_pulse.clock import FixedClock
 from customer_pulse.timewin import parse_instant, to_db
 
@@ -25,6 +27,37 @@ def ts(text: str) -> str:
 
 def sha(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+# The CLI, run in a temporary project directory on a pinned clock
+
+
+@pytest.fixture
+def project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("PULSE_NOW", NOW)
+    monkeypatch.delenv("PULSE_CONFIG", raising=False)
+    (tmp_path / "pulse.toml").write_text(
+        '[pulse]\ntimezone = "America/Los_Angeles"\n', encoding="utf-8"
+    )
+    return tmp_path
+
+
+def pulse_result(*args: str) -> Result:
+    return CliRunner().invoke(app, list(args))
+
+
+def pulse(*args: str) -> tuple[int, str]:
+    result = pulse_result(*args)
+    return result.exit_code, result.stdout
+
+
+def pulse_json(*args: str) -> tuple[int, dict]:
+    code, out = pulse(*args, "--json")
+    return code, json.loads(out)
+
+
+# The database
 
 
 @pytest.fixture

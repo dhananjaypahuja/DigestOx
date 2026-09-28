@@ -4,34 +4,12 @@ import json
 import sys
 
 import pytest
-from typer.testing import CliRunner
 
+from conftest import pulse, pulse_json
 from customer_pulse import __version__, db
-from customer_pulse.cli import app
 
 LATEST = len(db.available_migrations())
 ALL = list(range(1, LATEST + 1))
-
-
-@pytest.fixture
-def project(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv("PULSE_NOW", "2026-10-12T17:00:00Z")
-    monkeypatch.delenv("PULSE_CONFIG", raising=False)
-    (tmp_path / "pulse.toml").write_text(
-        '[pulse]\ntimezone = "America/Los_Angeles"\n', encoding="utf-8"
-    )
-    return tmp_path
-
-
-def pulse(*args):
-    result = CliRunner().invoke(app, list(args))
-    return result.exit_code, result.stdout
-
-
-def pulse_json(*args):
-    code, out = pulse(*args, "--json")
-    return code, json.loads(out)
 
 
 def test_status_before_init_reports_an_uninitialized_database(project):
