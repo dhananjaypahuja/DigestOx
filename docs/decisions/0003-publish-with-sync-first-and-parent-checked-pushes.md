@@ -1,6 +1,6 @@
 # 0003. Publish the team doc with sync first and ownership checked before every push
 
-- **Status:** Accepted
+- **Status:** Accepted; amended 2026-09-28
 - **Date:** 2026-09-27
 - **Decided by:** Dhananjay Pahuja, adopting the second round of ChatGPT's plan review
 - **Drafted by:** Claude, AI coworker, in SageOx-recorded sessions
@@ -42,6 +42,32 @@ shape how:
 9. Prove the doc is listed from a fresh session's start-up prime (see
    [0008](0008-no-prime-or-doctor-inside-a-working-session.md)).
 
+## Amendment, 2026-09-28: ownership proof comes from an append-only event log
+
+Codex's review of `95fc080` (finding R4) showed that the record behind steps 2 and 4 was weak.
+A `publish_steps` row could record a successful push without its document hash or team-context
+commit, and editing an older row could change which push counted as the latest. Migration
+`0003` replaces `publish_steps` with `publish_events`. The publishing order above is
+unchanged.
+
+<!-- SOURCE: sageox plan:2026-09-28-codex-session-1-review-95fc080 -->
+
+- **Append-only.** Every attempt is a new event, `done`, `failed`, or `blocked`. Events are
+  never updated or deleted.
+- **Proof for every success.** A written doc carries its hash. A push carries the doc hash and
+  the team-context commit. A listing carries the doc hash and the session that listed it. An
+  archive carries its reference.
+- **One chain.** A push must carry the hash of a document written for the digest, and a
+  listing the hash of a document pushed for it. A digest becomes `published` only after a
+  successful push.
+- **What Pulse last published** is the document of the latest successful push, by event order
+  (`v_last_published_doc`). Editing history can't change what steps 2 and 4 compare against.
+- **Retries** still resume where a publish stopped: `v_publish_steps` shows the latest event
+  for each step.
+
+Only an approved digest's approved content can be published. The digest lifecycle is in
+[0007](0007-enforce-invariants-in-the-schema.md)'s amendment.
+
 ## Consequences
 
 - Publishing can stop and ask, which is correct when a person edited the doc.
@@ -60,3 +86,5 @@ shape how:
 - DESIGN.md, section 9
 - `docs/upstream/docs-that-disagree-with-the-code.md`, which covers the guide that says the
   daemon pushes
+- `src/customer_pulse/migrations/0003_approval_and_publishing.sql` and
+  `tests/test_publishing.py` (the amendment)

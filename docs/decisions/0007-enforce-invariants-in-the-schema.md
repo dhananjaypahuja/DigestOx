@@ -1,6 +1,6 @@
 # 0007. Enforce the data invariants in the SQLite schema itself
 
-- **Status:** Accepted
+- **Status:** Accepted; amended 2026-09-28
 - **Date:** 2026-09-27
 - **Decided by:** Claude, as a code-level choice within the approved design; recorded for
   Dhananjay's review
@@ -34,6 +34,40 @@ Make the database refuse invalid states:
 - **`pulse status` is read-only.** It opens the database read-only and never creates or
   migrates it.
 
+## Amendment, 2026-09-28: invariants added after Codex's review
+
+Codex's review of `95fc080` reproduced four states the schema still allowed (findings R1 to
+R4). Migration `0001` stays unedited. Migrations `0002` to `0004` add:
+
+<!-- SOURCE: sageox plan:2026-09-28-codex-session-1-review-95fc080 -->
+
+- **Runs** ([0010](0010-bind-every-run-to-an-evidence-snapshot.md)): the window and cutoff are
+  fixed, a run finishes once, and its evidence snapshot is recorded only while it runs.
+- **Evidence:** issue observations and session evidence are history. A signal's identity,
+  time, customer, thread, issue, and first import are fixed. Once a run has used a session,
+  its evidence and times are fixed.
+- **Digests:** a digest is created as an unapproved draft, and its status only moves forward.
+  Approval happens only as a draft becomes approved, and it is final. Content, run, and lineage
+  are frozen once a digest leaves draft, and such digests are kept. This replaces the trigger
+  that froze only approved content, which a downgrade to draft could bypass.
+- **Publishing:** `publish_events` replaces `publish_steps`. It is append-only, and every
+  success carries its proof (see [0003](0003-publish-with-sync-first-and-parent-checked-pushes.md)'s
+  amendment).
+- **Themes:** a theme merges only into an active theme, merges and split lineage are final,
+  and themes are kept, so a merge cycle can't form. Resolution follows chains to any depth,
+  and `v_theme_unresolved` must stay empty.
+- **Migration guards:** a migration stops rather than drop existing records (`publish_steps`)
+  or accept a broken state (a merge cycle).
+
+Two working rules came out of the repairs:
+- A shipped migration is never edited. A fix is a new migration.
+- Each rule has one owner, a single trigger or CHECK, so every refusal names one clear reason.
+  SQLite doesn't define the order of several BEFORE triggers, so a statement that breaks two
+  rules at once may report either.
+
+`tests/test_snapshots.py`, `tests/test_publishing.py`, and `tests/test_themes.py` pin the new
+invariants. The suite has 155 tests after session 1b.
+
 ## Consequences
 
 - Bugs fail loudly at write time instead of producing wrong facts.
@@ -43,6 +77,6 @@ Make the database refuse invalid states:
 
 ## References
 
-- `src/customer_pulse/migrations/0001_initial.sql`
+- `src/customer_pulse/migrations/0001_initial.sql`, and `0002` to `0004` (the amendment)
 - DESIGN.md, section 4
 - `docs/sessions/01-foundation.md`

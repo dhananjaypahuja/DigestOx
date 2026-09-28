@@ -5,7 +5,8 @@
 > customer data is used anywhere.
 
 Status: draft for review, written in the first session (2026-09-27). The facts about `ox` in
-section 14 were checked against ox 0.18.0 on that date.
+section 14 were checked against ox 0.18.0 on that date. Session 1b (2026-09-28) updated
+sections 4, 5, 8, 9, and 14 to 16 for the foundation repairs after Codex's review.
 
 ## 1. The problem
 
@@ -101,10 +102,12 @@ mapping without the LLM, but every row is still validated again.
 ## 4. Storage
 
 SQLite through Python's built-in `sqlite3`, in one local file that stays out of git. Plain SQL
-with numbered migrations (`src/customer_pulse/migrations/0001_initial.sql`, …) recorded in `schema_migrations`,
-so a later move to PostgreSQL stays cheap. **SQLite is the single source of truth**, including
-the theme registry and the corrections log. The one committed derivative is the replay file
-(section 7).
+with numbered migrations (`src/customer_pulse/migrations/0001_initial.sql`, …) recorded in
+`schema_migrations`, so a later move to PostgreSQL stays cheap. A shipped migration is never
+edited: Pulse refuses a database whose applied migrations changed after they were applied, so
+every fix is a new migration (`0002` to `0004` came from Codex's review). **SQLite is the
+single source of truth**, including the theme registry and the corrections log. The one
+committed derivative is the replay file (section 7).
 
 | Table | One row per | Key columns and notes |
 |---|---|---|
@@ -113,8 +116,8 @@ the theme registry and the corrections log. The one committed derivative is the 
 | `imports` | import batch | source, file name, `content_sha256` (a file's hash identifies the batch, not the evidence in it), time, new/updated/unchanged counts, mapping used |
 | `signals` | Slack message, issue comment, or ticket | unique `(source, source_key)`; `account_id` (null = unattributed); author name; `occurred_at` (UTC); **redacted** text; hash of the raw text; URL; thread key; issue number for comments; `is_pulse_output`; first and last import |
 | `signal_revisions` | change to an existing record | old and new raw-text hash, import, time; edits are stored deliberately, never silently overwritten |
-| `issues` | GitHub issue | number, title, redacted body, URL, author, `created_at`, latest state, `stateReason`, `closed_at`, labels |
-| `issue_observations` | issue × import | state, `stateReason`, `closed_at`, labels as exported; state history is kept, not overwritten |
+| `issues` | GitHub issue | number, title, redacted body, URL, author, `created_at`, first and last import; its state lives in `issue_observations` |
+| `issue_observations` | issue × import | state, `stateReason`, `closed_at`, labels as exported; history, never updated or deleted |
 | `themes` | theme | stable `theme_id`, title, summary, status (`active`, `merged`, `retired`), `merged_into`, `split_from`, whether a person pinned the title |
 | `code_areas` | code area of the vendor repo | `area_key` (`wearable_sync`), description |
 | `code_area_paths` | path prefix of a code area | area, repo-relative path prefix (`bivo/wearable_sync/`) |
@@ -123,34 +126,71 @@ the theme registry and the corrections log. The one committed derivative is the 
 | `links` | signal → issue relationship | `references` (found by code) or `reports` (proposed by the model with a confidence; `proposed`, `confirmed`, or `rejected`) |
 | `corrections` | review command | append-only log of the command and its arguments, replayable |
 | `sessions` | ox session in the vendor repo | name, repo id, start and stop, URL, agent, produced commits, when reconciled |
-| `session_evidence` | session × file | path, level (`verified` or `reported`), commit SHA; a file with no row is `unknown` |
-| `runs` | pipeline run | kind, mode (`live` or `replay`), window, cutoff, timezone, model, effort, prompt version, tokens, cost |
-| `digests` | digest version | `digest_id` (`dg_0003`), run (which holds the window and cutoff), previous digest, content, `content_sha256`, status (`draft`, `approved`, `published`, `superseded`), approved hash |
-| `publish_steps` | digest × publishing step | `doc_written`, `doc_pushed`, `doc_listed`, `archived`; status and detail (team-context commit, doc hash, import id), so a retry resumes where it stopped |
+| `session_evidence` | session × file | path, level (`verified` or `reported`), commit SHA; a file with no row is `unknown`; history, and no rows can be added once a run has used the session |
+| `runs` | pipeline run | kind, mode (`live`, `replay`, or `offline`), window, cutoff, timezone, model, effort, prompt version, tokens, cost; the window and cutoff are fixed, and a run finishes once |
+| `run_imports` | run × import | the imports in the run's evidence snapshot; recorded only while the run is running, then fixed (section 5) |
+| `run_sessions` | run × engineering session | the sessions in the run's evidence snapshot, under the same rules |
+| `digests` | digest version | `digest_id` (`dg_0003`), run (which holds the window and cutoff), previous digest, content, `content_sha256`, status (`draft`, `approved`, `published`, `superseded`), approved hash; the lifecycle is in section 9 |
+| `publish_events` | publishing attempt | digest, step (`doc_written`, `doc_pushed`, `doc_listed`, `archived`), status (`done`, `failed`, `blocked`), approved hash, and the proof: doc hash, team-context commit, listing session, or archive reference; append-only (section 9) |
 | `mappings` | approved CSV mapping | header fingerprint (unique), mapping, approval |
 | `llm_cache` | LLM request | hash of the complete request → validated response, the request as sent (redacted text only), token usage |
 
 **Views compute the facts:** the effective assignment per signal; per run and theme, the
 signal and thread counts, affected customers (distinct non-null accounts), unattributed
 count, confirmed versus proposed assignments, and first and last seen inside the window; the
-trend against the previous digest; confirmed `reports` links dated after the linked issue
-closed (with its `stateReason`); and each theme's engineering attention. Window-dependent views
-join through `runs`, because SQLite views can't take parameters. The views are
-`v_theme_resolution`, `v_effective_assignment`, `v_issue_latest`, `v_run_signals`,
-`v_run_theme_facts`, `v_run_theme_customers`, `v_digest_theme_trend`,
-`v_run_reported_after_closure`, `v_run_theme_attention`, and `v_last_published_doc`.
+trend against the previous digest; each issue's state at the cutoff; confirmed `reports` links
+dated after the linked issue closed (with its `stateReason`); and each theme's engineering
+attention. Run-scoped views join through `runs`, because SQLite views can't take parameters,
+and read only the run's evidence snapshot (section 5).
+
+| Views | What they give |
+|---|---|
+| `v_theme_resolution`, `v_theme_unresolved` | each theme's surviving theme after merges; the second must always be empty |
+| `v_effective_assignment` | each signal's current theme, with a person's assignment winning |
+| `v_run_signals`, `v_run_theme_facts`, `v_run_theme_customers`, `v_digest_theme_trend` | a run's signals and per-theme facts, and the trend against the previous digest |
+| `v_run_issue_observations`, `v_run_issue_closures`, `v_run_issue_state` | what the run's snapshot saw of each issue, and its state at the cutoff |
+| `v_run_reported_after_closure`, `v_run_theme_attention` | the closure flag and engineering attention, per run |
+| `v_publish_steps`, `v_last_published_doc` | the latest event per publishing step, and the document of the latest successful push |
+| `v_issue_latest` | each issue's latest observation, for status output only; no run reads it |
 
 **The schema enforces the invariants itself,** so a bug in later code fails loudly instead of
-corrupting evidence. All tables are STRICT, and:
+corrupting evidence (decisions [0007](docs/decisions/0007-enforce-invariants-in-the-schema.md) and
+[0010](docs/decisions/0010-bind-every-run-to-an-evidence-snapshot.md)). All tables are STRICT, and:
 - **Timestamps:** every one must have the fixed-width UTC shape.
-- **Runs:** a run's cutoff must sit inside its window.
+- **Runs:** a run's cutoff must sit inside its window. The window and cutoff are fixed, a run
+  finishes once, and its evidence snapshot is recorded only while it runs.
+- **Evidence:** issue observations and session evidence are history. A signal's identity,
+  time, customer, thread, issue, and first import are fixed; only its text can be revised.
+  Once a run has used a session, its evidence and times are fixed.
 - **History:** corrections and assignments are append-only, enforced by triggers.
 - **Mentions and reports:** a `references` link can never be reviewed into a claim, and a
   `reports` link needs a logged correction to be confirmed or rejected.
-- **Approval:** an approved digest's content can't change, and its approved hash must equal its
-  content hash.
-- **Publishing:** a publish step is refused unless it carries the digest's approved hash.
+- **Digests:** a digest is created as an unapproved draft, and its status only moves forward.
+  Approval happens only as a draft becomes approved, it is final, and the approved hash must
+  equal the content hash. A digest is frozen once it leaves draft, and kept.
+- **Publishing:** events are append-only and need an approved digest's approved hash. Every
+  success carries its proof, a push must match a written document and a listing a pushed one,
+  and a digest is `published` only after a successful push.
+- **Themes:** a theme merges only into an active theme, merges and split lineage are final,
+  and themes are kept, so a merge cycle can't form.
 - **Evidence levels:** `verified` evidence must name its commit.
+- **Migrations:** a migration stops rather than drop existing records or accept a broken
+  state, such as a merge cycle already in the database.
+
+**Local state is private.** The database holds customers' words, so Pulse creates the state
+directory as 0700 and the database file as 0600 before SQLite opens it. Existing state that
+other users can read is refused with the exact `chmod` to run. Pulse never changes
+permissions itself, and `pulse status` reports such problems without changing anything
+(decision [0005](docs/decisions/0005-privacy-gates-before-storage-model-calls-and-publishing.md)'s
+amendment).
+
+**Failures come back in the same format as results.** With `--json`, a failure is a JSON error
+with a stable code and a hint; without it, the same message goes to stderr. Expected
+filesystem and SQLite failures have their own codes: `state_path_not_a_directory`,
+`state_dir_not_private`, `database_not_private`, `permission_denied`, `filesystem_error`,
+`database_locked`, `database_unavailable`, `database_unreadable`, and `database_error`.
+Programming errors still raise, so a bug can't hide behind a tidy message. Every connection
+waits up to five seconds (`LOCK_WAIT_SECONDS`) for another command's lock.
 
 The doorbell queue from the kickoff is gone (section 10), so nothing lives outside SQLite
 except the replay file and logs.
@@ -171,14 +211,28 @@ records instead of duplicating them:
 **Windows and cutoffs.** A digest covers `[start, end)` in the configured timezone, stored in
 UTC. The cutoff defaults to the window end. When the model reads a thread, the thread stops
 at the cutoff too, because "still broken" means nothing without its thread, and a reply
-written later must not leak in. An issue's state at the cutoff comes from `createdAt` and
-`closedAt`; anything the export can't show, such as reopen history or past labels, is marked
-unknown. Engineering sessions count only when their stop time and commits fall before the
-cutoff. Tests run on a fixed clock.
+written later must not leak in. Engineering sessions count only when their stop time and
+commits fall before the cutoff. Tests run on a fixed clock.
+
+**Evidence snapshots.** Each run records the imports and engineering sessions it used, and
+every run-scoped view reads only that snapshot, so a later export can't change the facts of a
+run that already exists. Later exports feed new runs, including earlier facts they reveal
+(decision [0010](docs/decisions/0010-bind-every-run-to-an-evidence-snapshot.md)). An issue's state at the
+cutoff comes from the snapshot's observations in import order:
+
+| State | When |
+|---|---|
+| `open` | no observation shows a closure before the cutoff |
+| `closed` | the latest observation that shows one isn't contradicted by a later observation |
+| `unknown` | a later observation shows the issue reopened, or closed on another date; the export has no reopen history, so the change can't be placed relative to the cutoff |
+
+Only issues created before the cutoff have a state. Labels at the cutoff are unknown for the
+same reason: each observation records the labels as exported.
 
 These rules hold from the very first digest. Boundary tests are written with the thin slice,
 before anything is published: the window edges, a thread reply after the cutoff, an issue
-closed after the cutoff, and a session after the cutoff.
+closed after the cutoff, a session after the cutoff, and a later import that must not change
+an earlier run.
 
 ## 6. Attribution and redaction
 
@@ -232,7 +286,9 @@ redacted first.
 assigns new signals to them, proposing a new theme only when nothing fits. Signals a person
 has assigned are pinned and never re-assigned by the model. `merge` keeps the surviving ID and
 records `merged_into`; `split` keeps the original ID for what remains and mints new IDs for the
-parts that leave. Before the first publish, tests with a fake model run grouping several times
+parts that leave. A theme merges only into an active theme, and merges and split lineage are
+final, so merges can never form a cycle. Themes are never deleted; one that stops being useful
+is retired. Resolution follows merge chains to any depth. Before the first publish, tests with a fake model run grouping several times
 and check that the same inputs keep the same theme IDs, new signals join existing themes, a
 person's assignment survives a re-run and wins, and merges and splits keep their lineage.
 
@@ -243,7 +299,9 @@ after a person confirms it.
 **Reported after issue closure.** A customer report dated after a specific issue closed, where
 a *confirmed* `reports` link ties them together. The report must fall inside the digest window,
 before its cutoff; the closure only has to come before the report, so an issue closed last
-week and reported again this week is flagged. The digest shows the issue's `stateReason`
+week and reported again this week is flagged. The closure comes from the run's evidence
+snapshot; when the snapshot holds several, the flag shows the latest one before the report
+(decision [0004](docs/decisions/0004-flag-re-reports-even-when-the-closure-precedes-the-window.md)). The digest shows the issue's `stateReason`
 (`completed` or `not_planned`) beside the flag and never calls it a regression, which would
 need evidence about releases or earlier working behaviour.
 
@@ -270,7 +328,9 @@ Every statement is labelled Observed, Inferred, or Suggested.
 Every command is written to `corrections` and can be replayed. Regenerating a draft re-applies
 the stored corrections, so review work is never lost. `pulse review --approve` records the
 approved digest's content hash; any change makes a new draft that needs review, and
-`pulse publish` refuses anything that isn't approved. Tests cover the negative cases:
+`pulse publish` refuses anything that isn't approved. Approval is final. A digest is created as
+a draft, its status only moves forward (draft, approved, published, and any of them to
+superseded), and it is frozen once it leaves draft. Tests cover the negative cases:
 publishing an unapproved digest is refused; so is content changed after approval;
 regenerating identical content keeps the approval; and a resumed publish re-checks the exact
 approved hash at every step. Every command supports `--json`.
@@ -319,8 +379,16 @@ ownership rules came from the plan review.
 - The unique title also avoids ox's same-date directory collision (imports are stored under
   `data/docs/<date>/<slug>`).
 
-`publish_steps` tracks `doc_written`, `doc_pushed`, `doc_listed`, and `archived` per digest
-version, so a partial success is visible and a retry resumes where it stopped.
+`publish_events` logs every attempt at `doc_written`, `doc_pushed`, `doc_listed`, and
+`archived` per digest version, and events are never changed:
+- Each success carries its proof: the document hash, the team-context commit, the session
+  that listed the doc, or the archive reference.
+- A push must carry the hash of a document written for the digest, and a listing the hash of
+  a pushed one.
+- The latest event per step shows where a partial success stopped, so a retry resumes there.
+- "What Pulse last published", which the ownership checks compare against, is the document of
+  the latest successful push by event order, so no edit to history can change it (decision
+  [0003](docs/decisions/0003-publish-with-sync-first-and-parent-checked-pushes.md)'s amendment).
 
 ## 10. Engineering attention
 
@@ -485,7 +553,7 @@ automatic issue creation or customer replies, and PDFs or other arbitrary docume
 | Reading sessions | `ox session list --json`; `ox session view <name> --json`; `--context` shows the context trace; `--repo <path>` merges the current directory's ledger | `ox session view --help`, `ox session list --help` | Refined |
 | Sessions and commits | `prepare-commit-msg` adds the `SageOx-Session:` trailer; `post-commit` and `post-rewrite` maintain `ProducedCommits`; the trailer wins on disagreement; squash merges lose it | `docs/specs/session-commit-linkage.md` | Confirmed |
 | `ox doctor` | Even without flags it starts the daemon and applies checks marked `FixLevelAuto`, which can include an automatic "stop tracking ox-managed agent files" commit. `--force-session-uploads` and `--gc` also make changes | `cmd/ox/doctor.go`, `doctor_types.go`, `doctor_legacy_ox_files.go` | **Changed: not read-only** |
-| `ox agent prime` | Reads hook JSON from stdin and waits if stdin is an open pipe (run it with `</dev/null`). A second prime in the same agent session is a compact re-prime without the team-docs catalog. In the first session, a re-prime started a new recording for the same agent | live, first session | New |
+| `ox agent prime` | Reads hook JSON from stdin and waits if stdin is an open pipe (run it with `</dev/null`). A second prime in the same agent session is a compact re-prime without the team-docs catalog. In the first session, a re-prime started a new recording for the same agent. In session 1b, Claude Code's context compaction re-ran prime through its SessionStart hook, which finalized and uploaded the running recording (20h 35m, 517 entries) and started a new one | live, sessions 1 and 1b | New |
 
 **Live tests in the first session:**
 
@@ -534,6 +602,16 @@ A second round corrected two rules. Pulse syncs before checking ownership and re
 check before every push. And a re-report is flagged even when the issue closed before the
 digest window.
 
+Codex's review of the foundation build (`95fc080`) reproduced six gaps. Session 1b fixed all
+six, with new migrations and CLI changes, before session 2:
+- Approval could be cleared or forged. It is now final, and status only moves forward.
+- A later issue import rewrote an earlier run's facts. Each run now reads only its evidence
+  snapshot.
+- A merge cycle silently removed themes and their evidence. Cycles are now impossible.
+- Publishing proof was incomplete and could be reordered. It is now an append-only event log.
+- Filesystem and database failures escaped the JSON output. They now have stable error codes.
+- An existing readable state directory exposed the database. Such state is now refused.
+
 The vendor was nearly swapped for TraceRoot, a real open-source startup. The decision was to
 keep the fictional Bivo, so that invented complaints never attach to a real company, and to
 borrow TraceRoot's open-source engineering conventions instead.
@@ -542,6 +620,9 @@ borrow TraceRoot's open-source engineering conventions instead.
 
 - The evaluation is a regression check, not evidence of real-world quality (section 11).
 - CSV rows without an ID can't be matched across edited exports.
+- A run's issue state is `unknown` when its snapshot can't place a reopen relative to the
+  cutoff, because GitHub's export has no reopen history.
+- Local state is protected by POSIX permissions. On other systems Pulse can't check them.
 - Pulse depends on ox's CLI output and team-context layout, which change often. It pins the
   version it was checked against (above), parses JSON defensively, and fails loudly.
 - **Growth path:** PostgreSQL, when several FDEs write at once, Pulse becomes a hosted

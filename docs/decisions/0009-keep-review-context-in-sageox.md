@@ -1,6 +1,6 @@
 # 0009. Keep every session's decisions and evidence available through SageOx
 
-- **Status:** Accepted
+- **Status:** Accepted; amended 2026-09-27
 - **Date:** 2026-09-27
 - **Decided by:** Dhananjay Pahuja: "After each session and commit, make sure all your context
   about decisions and design are available using SageOx so ChatGPT can review properly."

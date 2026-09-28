@@ -1,6 +1,6 @@
 # 0004. Flag re-reports even when the issue closed before the digest window
 
-- **Status:** Accepted
+- **Status:** Accepted; amended 2026-09-28
 - **Date:** 2026-09-27
 - **Decided by:** Dhananjay Pahuja, adopting the second round of ChatGPT's plan review
 - **Drafted by:** Claude, AI coworker, in SageOx-recorded sessions
@@ -23,6 +23,18 @@ Flag a report when all three hold:
 The closure may fall before the window. The digest shows the issue's `stateReason` beside the
 flag and never calls it a regression.
 
+## Amendment, 2026-09-28: the closure comes from the run's evidence snapshot
+
+Codex's review of `95fc080` (finding R2) showed that the view read each issue's latest
+observation across all imports, so a later export could change an existing run's flags. Under
+[0010](0010-bind-every-run-to-an-evidence-snapshot.md), condition 3 reads: **a closure recorded
+in the run's evidence snapshot is earlier than the report.** When the snapshot holds several
+closures, the flag shows the latest one before the report, with its `stateReason`. The rest of
+the rule is unchanged. Migration `0002` recreates `v_run_reported_after_closure` this way, and
+`tests/test_snapshots.py` covers it, including Codex's reproduction.
+
+<!-- SOURCE: sageox plan:2026-09-28-codex-session-1-review-95fc080 -->
+
 ## Consequences
 
 The view `v_run_reported_after_closure` (migration `0001`) implements the rule.
@@ -42,3 +54,5 @@ The view `v_run_reported_after_closure` (migration `0001`) implements the rule.
 - DESIGN.md, section 8
 - `src/customer_pulse/migrations/0001_initial.sql`
 - `tests/test_schema.py`
+- `src/customer_pulse/migrations/0002_run_evidence_snapshots.sql` and
+  `tests/test_snapshots.py` (the amendment)

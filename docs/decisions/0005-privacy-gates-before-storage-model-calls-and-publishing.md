@@ -1,6 +1,6 @@
 # 0005. Privacy gates before storage, before model calls, and before publishing
 
-- **Status:** Accepted
+- **Status:** Accepted; amended 2026-09-28
 - **Date:** 2026-09-27
 - **Decided by:** Dhananjay Pahuja, adopting the first round of ChatGPT's plan review, with
   one refinement
@@ -33,6 +33,25 @@ Three gates, each a set of tests that must pass before the next step:
 Instead it travels only inside delimited evidence blocks, and a typed output schema keeps it
 from steering the result.
 
+## Amendment, 2026-09-28: local state is private
+
+Codex's review of `95fc080` (finding R6) found that an existing state directory kept its mode.
+With a 0755 directory, `pulse init` succeeded and the new database was 0644, so other local
+users could read it. The review asked Pulse to reject unsafe state or obtain consent, rather
+than silently change a directory the user chose.
+
+<!-- SOURCE: sageox plan:2026-09-28-codex-session-1-review-95fc080 -->
+
+- Pulse creates the state directory as 0700, and the database file as 0600 before SQLite
+  opens it. SQLite gives its journal files the database's permissions.
+- Existing state that other users can read (the directory, the database, or a SQLite
+  companion file) is refused with a stable error code and the exact `chmod` to run. Pulse
+  never changes permissions itself.
+- `pulse status` reports the same problems as warnings and changes nothing.
+- Pulse doesn't ask for consent: `--json` and non-interactive runs can't answer a prompt, and a
+  refusal behaves the same everywhere.
+- The checks rely on POSIX permissions. On other systems Pulse can't make them.
+
 ## Consequences
 
 - The first live call waits for the session 4 tests.
@@ -43,3 +62,4 @@ from steering the result.
 
 - DESIGN.md, section 6
 - `docs/sessions/00-setup-and-plan.md`
+- `src/customer_pulse/state.py` and `tests/test_cli_state.py` (the amendment)
