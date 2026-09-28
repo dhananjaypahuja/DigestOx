@@ -30,6 +30,25 @@ After each session and commit:
 6. **The plan.** The build plan's lifecycle stays current in the ledger (`ox plan work`, and
    `ox plan realize` when v1 is done).
 
+## Amendment, 2026-09-27: checkpoint after every commit
+
+Codex's review handoff refined the routine, and it's adopted. Checkpoints happen after every
+commit, not only at a session's end:
+
+- **Refresh the evidence record immediately**, even while the recording is still active. It
+  gets the actual commit SHA, session and plan references, decisions and rationale, critiques
+  with their open or resolved status, the validation actually run, and the next step for the
+  next agent (Claude or Codex).
+- **Save and verify it.** Save with `ox plan save --file <record> --kind evidence`, confirm
+  with `ox plan view <returned-slug>`, and give the next agent that exact command.
+- **Keep local and remote separate.** A record that `ox plan view` can read locally isn't
+  proof that it synced to sageox.ai or that search has indexed it. Report which is verified.
+- **No recursive bookkeeping.** A record never needs a commit of its own just to cite its own
+  SHA. The final record is committed at the session's end; the intermediate ledger
+  checkpoints don't wait for it.
+
+Review-only sessions, such as Codex's, follow the same routine.
+
 ## Consequences
 
 - Reviewers find the same context on GitHub and in SageOx.

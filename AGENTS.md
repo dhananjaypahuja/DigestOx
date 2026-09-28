@@ -20,6 +20,14 @@ record in `docs/sessions/` before changing anything.
     `ox decision enrich --file <record>`
   - write the session's record in `docs/sessions/`, commit it, and save it with
     `ox plan save --file <record> --kind evidence`
+  - after each commit, refresh and save that evidence record immediately, even while the
+    recording remains active; include the actual commit SHA, session/plan references,
+    decisions and rationale, critiques with open/resolved status, validation actually run,
+    and the next step for Claude or Codex. Apply this to review-only handoffs too
+  - verify the checkpoint with `ox plan view <returned-slug>` and give the next agent that
+    exact command. Local ledger retrieval is distinct from remote sync or search indexing;
+    report any unverified sharing status. Do not wait for recording upload to save context,
+    or create recursive bookkeeping commits just to include a record's own commit SHA
   - keep `DESIGN.md` current
 - **ox rules** ([decision 0008](docs/decisions/0008-no-prime-or-doctor-inside-a-working-session.md)):
   - once the session-start hook has primed, don't run `ox agent prime` or `ox doctor` again

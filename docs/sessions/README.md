@@ -9,6 +9,12 @@ GitHub and in SageOx ([decision 0009](../decisions/0009-keep-review-context-in-s
 |---|---|---|---|
 | 0 | Setup verified, ox facts re-checked, design written, build plan approved | [00-setup-and-plan.md](00-setup-and-plan.md) | `ses_01a0e4a5` (the first hour is missing; see the record) |
 | 1 | Foundation: package, time model, schema, `pulse init` and `pulse status` | [01-foundation.md](01-foundation.md) | `ses_01a0e4a5` |
+| Codex reviews | Plan critique, resolution status, foundation verification, and the next implementation handoff | [codex-plan-review-handoff.md](codex-plan-review-handoff.md) | `ses_01a0e4f5` |
+
+Refresh and save the working session record after each commit, including while its recording
+is active. The final session record can be committed at the session's end; the intermediate
+SageOx evidence checkpoints must not wait for it. Verify each saved version with
+`ox plan view <returned-slug>` and distinguish local ledger availability from remote sharing.
 
 Recordings open at `https://sageox.ai/c/<session id>` for members of the SageOx team. Every
 commit's `SageOx-Session:` trailer names the recording that produced it.
