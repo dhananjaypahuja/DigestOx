@@ -91,6 +91,10 @@ def connect(path: Path) -> sqlite3.Connection:
     conn = sqlite3.connect(path, isolation_level=None, timeout=LOCK_WAIT_SECONDS)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
+    # SQLite's conflict-replacement path deletes the conflicting row before inserting the
+    # replacement. With recursive triggers enabled, our append-only/immutable DELETE triggers
+    # also guard that path; without it, INSERT OR REPLACE could rewrite approved history.
+    conn.execute("PRAGMA recursive_triggers = ON")
     return conn
 
 

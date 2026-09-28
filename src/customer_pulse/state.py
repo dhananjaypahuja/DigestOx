@@ -4,7 +4,8 @@ The database holds customer evidence (redacted, but still customers' words), so 
 systems the state directory must be 0700 and the database and its SQLite companion files 0600.
 Pulse creates them that way. It never silently changes the permissions of a directory or file
 that already exists: an existing one that other users can read is refused, with the exact
-command to fix it.
+command to fix it. Symbolic links and other non-regular database paths are refused so Pulse
+cannot follow them outside the private state directory.
 """
 
 from __future__ import annotations
@@ -35,10 +36,38 @@ def _exposed(path: Path) -> bool:
     return permissions_apply() and bool(_mode(path) & _GROUP_AND_OTHER)
 
 
+def _present(path: Path) -> bool:
+    """Whether a path exists, including a dangling symbolic link."""
+    return path.exists() or path.is_symlink()
+
+
+def _path_problem(path: Path) -> str | None:
+    """Return a privacy/path problem without following an unsafe database path."""
+    try:
+        info = path.lstat()
+    except FileNotFoundError:
+        return None
+    if stat.S_ISLNK(info.st_mode):
+        return f"{path} is a symbolic link"
+    if not stat.S_ISREG(info.st_mode):
+        return f"{path} is not a regular file"
+    if _exposed(path):
+        return f"{path} has mode {_mode(path):04o}"
+    return None
+
+
+def _is_unsafe_path(path: Path) -> bool:
+    try:
+        info = path.lstat()
+    except FileNotFoundError:
+        return False
+    return stat.S_ISLNK(info.st_mode) or not stat.S_ISREG(info.st_mode)
+
+
 def database_files(db_path: Path) -> list[Path]:
     """The database and whichever SQLite companion files exist next to it."""
     companions = [db_path.with_name(db_path.name + suffix) for suffix in _COMPANION_SUFFIXES]
-    return [path for path in (db_path, *companions) if path.exists()]
+    return [path for path in (db_path, *companions) if _present(path)]
 
 
 def privacy_problems(config: Config) -> list[str]:
@@ -49,9 +78,7 @@ def privacy_problems(config: Config) -> list[str]:
     if _exposed(config.state_dir):
         problems.append(f"{config.state_dir} has mode {_mode(config.state_dir):04o}")
     problems.extend(
-        f"{path} has mode {_mode(path):04o}"
-        for path in database_files(config.db_path)
-        if _exposed(path)
+        problem for path in database_files(config.db_path) if (problem := _path_problem(path))
     )
     return problems
 
@@ -78,18 +105,41 @@ def prepare(config: Config) -> bool:
             hint=f"run `chmod 700 '{state_dir}'`, or set pulse.state_dir to a private directory",
         )
 
+    for path in database_files(config.db_path):
+        problem = _path_problem(path)
+        if problem and _is_unsafe_path(path):
+            raise PulseError(
+                "database_path_not_regular",
+                f"{problem}; Pulse will not follow it",
+                hint="move it aside, or set pulse.state_dir to a private directory",
+            )
+
     created = False
     try:
         # Create the database file private before SQLite opens it; SQLite gives its journal
         # files the same permissions as the database.
-        os.close(os.open(config.db_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, PRIVATE_FILE_MODE))
+        flags = os.O_CREAT | os.O_EXCL | os.O_WRONLY
+        if hasattr(os, "O_NOFOLLOW"):
+            flags |= os.O_NOFOLLOW
+        os.close(os.open(config.db_path, flags, PRIVATE_FILE_MODE))
         created = True
     except FileExistsError:
         pass
 
-    exposed = [path for path in database_files(config.db_path) if _exposed(path)]
-    if exposed:
-        listing = ", ".join(f"{path.name} (mode {_mode(path):04o})" for path in exposed)
+    problems = [
+        problem for path in database_files(config.db_path) if (problem := _path_problem(path))
+    ]
+    if problems:
+        unsafe = [path for path in database_files(config.db_path) if _is_unsafe_path(path)]
+        if unsafe:
+            listing = ", ".join(problems)
+            raise PulseError(
+                "database_path_not_regular",
+                f"{listing}; Pulse will not follow it",
+                hint="move it aside, or set pulse.state_dir to a private directory",
+            )
+        listing = ", ".join(problems)
+        exposed = [path for path in database_files(config.db_path) if _exposed(path)]
         commands = " ".join(f"'{path}'" for path in exposed)
         raise PulseError(
             "database_not_private",

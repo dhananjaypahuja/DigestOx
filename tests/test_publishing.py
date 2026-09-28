@@ -237,6 +237,28 @@ def test_codex_reproduction_last_published_follows_event_order(build, run):
         build.conn.execute("DELETE FROM publish_events")
 
 
+def test_conflict_replacement_cannot_rewrite_approval_or_publish_history(build, run):
+    digest = build.digest("dg_0001", run, approved=True)
+    with pytest.raises(sqlite3.IntegrityError, match="history"):
+        build.conn.execute(
+            "INSERT OR REPLACE INTO digests "
+            "(digest_id, run_id, content_md, content_sha256, status, created_at) "
+            "VALUES (?, ?, 'rewritten', ?, 'draft', ?)",
+            (digest, run, sha("rewritten"), build.now),
+        )
+
+    build.publish(digest, "doc_written", doc="doc")
+    pushed = build.publish(digest, "doc_pushed", doc="doc", commit="commit")
+    with pytest.raises(sqlite3.IntegrityError, match="append-only"):
+        build.conn.execute(
+            "INSERT OR REPLACE INTO publish_events "
+            "(event_id, digest_id, step, status, approved_sha256, at) "
+            "VALUES (?, ?, 'doc_pushed', 'failed', ?, ?)",
+            (pushed, digest, build.approved_hash(digest), build.now),
+        )
+    assert build.conn.execute("SELECT digest_id FROM v_last_published_doc").fetchone()[0] == digest
+
+
 def test_replacing_publish_steps_refuses_to_discard_records(db_path, clock, monkeypatch):
     shipped = db.available_migrations()
     conn = db.connect(db_path)

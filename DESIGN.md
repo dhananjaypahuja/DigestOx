@@ -180,14 +180,14 @@ corrupting evidence (decisions [0007](docs/decisions/0007-enforce-invariants-in-
 **Local state is private.** The database holds customers' words, so Pulse creates the state
 directory as 0700 and the database file as 0600 before SQLite opens it. Existing state that
 other users can read is refused with the exact `chmod` to run. Pulse never changes
-permissions itself, and `pulse status` reports such problems without changing anything
+permissions itself, refuses symbolic links and other non-regular database paths, and `pulse status` reports such problems without changing anything
 (decision [0005](docs/decisions/0005-privacy-gates-before-storage-model-calls-and-publishing.md)'s
 amendment).
 
 **Failures come back in the same format as results.** With `--json`, a failure is a JSON error
 with a stable code and a hint; without it, the same message goes to stderr. Expected
 filesystem and SQLite failures have their own codes: `state_path_not_a_directory`,
-`state_dir_not_private`, `database_not_private`, `permission_denied`, `filesystem_error`,
+`state_dir_not_private`, `database_not_private`, `database_path_not_regular`, `permission_denied`, `filesystem_error`,
 `database_locked`, `database_unavailable`, `database_unreadable`, and `database_error`.
 Programming errors still raise, so a bug can't hide behind a tidy message. Every connection
 waits up to five seconds (`LOCK_WAIT_SECONDS`) for another command's lock.

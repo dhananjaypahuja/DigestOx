@@ -177,3 +177,17 @@ def test_a_readable_sqlite_companion_file_is_refused(project):
     code, out = pulse("init", "--json")
     assert code == 1
     assert error_code(out) == "database_not_private"
+
+
+@POSIX_ONLY
+def test_database_symlink_is_refused_without_following_it(project, tmp_path):
+    state = project / ".pulse"
+    state.mkdir(mode=0o700)
+    target = tmp_path / "outside" / "pulse.db"
+    state.joinpath("pulse.db").symlink_to(target)
+
+    code, out = pulse("init", "--json")
+
+    assert code == 1
+    assert error_code(out) == "database_path_not_regular"
+    assert not target.exists()
