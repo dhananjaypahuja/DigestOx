@@ -168,10 +168,14 @@ def _run(
     clock: Clock,
     work: Any,
 ) -> dict[str, Any]:
+    # Export basenames are supplied by the caller, not trusted metadata. They reach both
+    # imports.file_name and pulse.log, so they need the same privacy gate as evidence text.
+    file_name = redact(file_name).text
     conn.execute("BEGIN IMMEDIATE")
     try:
         if done := _already_imported(conn, source, sha):
             conn.execute("ROLLBACK")
+            done["file_name"] = redact(done["file_name"]).text
             state.append_log(config, {"event": "import_skipped", **done})
             return done
         batch = _Batch(conn, source, file_name, sha, clock)
@@ -225,13 +229,19 @@ def _claim_channels(
     """Record the Slack ID of each customer's channel the first time an export shows it."""
     for channel in channels:
         account = directory.by_channel_name.get(channel.name)
-        if account and channel.id not in directory.by_channel_id:
-            conn.execute(
+        if (
+            account
+            and channel.id not in directory.by_channel_id
+            and directory.channel_id_by_account.get(account) is None
+        ):
+            cursor = conn.execute(
                 "UPDATE accounts SET slack_channel_id = ? "
                 "WHERE account_id = ? AND slack_channel_id IS NULL",
                 (channel.id, account),
             )
-            directory.by_channel_id[channel.id] = account
+            if cursor.rowcount:
+                directory.by_channel_id[channel.id] = account
+                directory.channel_id_by_account[account] = channel.id
 
 
 def import_github(
@@ -257,7 +267,7 @@ def _store_issue(batch: _Batch, issue: github.RawIssue) -> str:
     title, body, url = batch.redact(issue.title), batch.redact(issue.body), batch.redact(issue.url)
     author = redact_text(issue.author_login)
     closed_at = to_db(issue.closed_at) if issue.closed_at else None
-    labels = json.dumps(issue.labels)
+    labels = json.dumps([batch.redact(label) for label in issue.labels])
     existing = conn.execute(
         "SELECT i.title, i.body_redacted, i.url, i.created_at, o.state, o.state_reason, "
         "o.closed_at, o.labels_json FROM issues AS i LEFT JOIN v_issue_latest AS o "

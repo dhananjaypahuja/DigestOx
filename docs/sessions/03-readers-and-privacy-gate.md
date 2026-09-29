@@ -94,7 +94,8 @@ log, and a log of counts only.
 | `074ba48` | feat: add the Slack and GitHub readers behind the stored-data privacy gate | 259 passed; `ruff check` and `ruff format --check` clean; `git diff --check` clean |
 | `8f0610d` | docs: record session 3's readers, attribution, and vendor-message decision | documents only |
 
-This record is committed after `8f0610d`. Its ledger copy is saved right after that commit.
+This record is committed in `714104a`, and its ledger copy is saved right after that
+commit.
 None of session 3's commits has been pushed; pushing waits for Dhananjay's OK.
 
 ## Critiques and open items
@@ -120,4 +121,4 @@ Session 4: the Claude module, the request gate, and stable themes.
 - The one live run on the thin fixtures spends API credit, so it waits for Dhananjay's OK.
 - Thread context reads `signals` directly, including vendor replies.
 
-Retrieve this record with `ox plan view <slug>`; the slug is given in the session summary.
+Retrieve this record with `ox plan view 2026-09-29-session-3-readers-and-the-stored`.

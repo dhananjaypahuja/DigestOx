@@ -17,6 +17,7 @@ from customer_pulse import __version__, accounts, db, ingest, state
 from customer_pulse.clock import clock_from_env
 from customer_pulse.config import Config, load_config
 from customer_pulse.errors import PulseError
+from customer_pulse.redact import redact
 
 app = typer.Typer(
     name="pulse",
@@ -296,7 +297,7 @@ def accounts_load(ctx: typer.Context, file: FileArg, as_json: JsonFlag = False) 
             config,
             {
                 "event": "accounts_load",
-                "file_name": file.name,
+                "file_name": redact(file.name).text,
                 **{k: len(v) if isinstance(v, list) else v for k, v in result.items()},
             },
         )

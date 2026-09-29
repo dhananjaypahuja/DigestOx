@@ -185,6 +185,34 @@ def test_channel_ids_are_claimed_from_the_first_export(thin_project):
     }
 
 
+def test_same_name_with_a_new_slack_id_does_not_claim_a_pinned_account(thin_project, tmp_path):
+    _import("slack", SLACK_A)
+    export = tmp_path / "reused-name"
+    channel_dir = export / "bivo-copperfen"
+    channel_dir.mkdir(parents=True)
+    (export / "users.json").write_text("[]", encoding="utf-8")
+    (export / "channels.json").write_text(
+        json.dumps([{"id": "C_NEW", "name": "bivo-copperfen"}]), encoding="utf-8"
+    )
+    (channel_dir / "2026-09-18.json").write_text(
+        json.dumps(
+            [{"type": "message", "user": "U_NEW", "ts": "1790000000.000001", "text": "hello"}]
+        ),
+        encoding="utf-8",
+    )
+    result = _import("slack", export)
+    assert result["channels_naming_no_customer"] == ["bivo-copperfen"]
+    with open_db(thin_project) as conn:
+        pinned = conn.execute(
+            "SELECT slack_channel_id FROM accounts WHERE account_id = 'acct_copperfen'"
+        ).fetchone()[0]
+        attributed = conn.execute(
+            "SELECT account_id FROM signals WHERE source_key = 'C_NEW:1790000000.000001'"
+        ).fetchone()[0]
+    assert pinned == "C0CPF00001"
+    assert attributed is None
+
+
 @pytest.mark.parametrize("source", ["slack", "github"])
 def test_import_needs_an_initialized_database(project, source):
     target = SLACK_A if source == "slack" else GITHUB_17

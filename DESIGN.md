@@ -116,11 +116,11 @@ committed derivative is the replay file (section 7).
 |---|---|---|
 | `accounts` | customer | `account_id` (`acct_morrowvale`), name, Slack channel id and name |
 | `account_domains` | email domain | `domain` → `account_id`; used to attribute CSV tickets |
-| `imports` | import batch | source, file name, `content_sha256` (a file's hash identifies the batch, not the evidence in it; an unzipped Slack export's hash covers every file's path and content), time, new/updated/unchanged counts, mapping used |
+| `imports` | import batch | source, redacted file name, `content_sha256` (a file's hash identifies the batch, not the evidence in it; an unzipped Slack export's hash covers every file's path and content), time, new/updated/unchanged counts, mapping used |
 | `signals` | Slack message, issue comment, or ticket | unique `(source, source_key)`; `account_id` (null = unattributed); author name; `author_role` (`customer` or `vendor`, section 6); `occurred_at` (UTC); **redacted** text; hash of the raw text; URL; thread key; issue number for comments; `is_pulse_output`; first and last import |
 | `signal_revisions` | change to an existing record | old and new raw-text hash, import, time; edits are stored deliberately, never silently overwritten |
 | `issues` | GitHub issue | number, title, redacted body, URL, author, `created_at`, first and last import; its state lives in `issue_observations` |
-| `issue_observations` | issue × import | state, `stateReason`, `closed_at`, labels as exported; history, never updated or deleted |
+| `issue_observations` | issue × import | state, `stateReason`, `closed_at`, redacted label names; history, never updated or deleted |
 | `themes` | theme | stable `theme_id`, title, summary, status (`active`, `merged`, `retired`), `merged_into`, `split_from`, whether a person pinned the title |
 | `code_areas` | code area of the vendor repo | `area_key` (`wearable_sync`), description |
 | `code_area_paths` | path prefix of a code area | area, repo-relative path prefix (`bivo/wearable_sync/`) |
@@ -207,7 +207,7 @@ waits up to five seconds (`LOCK_WAIT_SECONDS`) for another command's lock.
 
 The doorbell queue from the kickoff is gone (section 10), so nothing lives outside SQLite
 except the replay file and the log. The log, `pulse.log` in the state directory, is one JSON
-event per line: event names, file names, IDs, and counts, never customer text. It is created
+event per line: event names, redacted file names, IDs, and counts, never customer text. It is created
 0600, never followed through a link, and refused like the database if other users can read
 it. The check happens before any import writes, so a refusal leaves the database untouched.
 
@@ -275,8 +275,9 @@ it happens before redaction.
 
 The customer list comes from `pulse accounts load <file>`: each account's ID, name, shared
 Slack channel, and email domains. The first Slack export that shows a customer's channel
-records its ID. Loading never removes an account or a domain, and a domain or channel belongs
-to one account.
+records its ID. Once pinned, a different channel ID with the same name does not inherit that
+account; its messages stay unattributed by channel unless another attribution rule applies.
+Loading never removes an account or a domain, and a domain or channel belongs to one account.
 
 **Vendor staff.** Shared channels and issue threads carry the vendor's replies too. Pulse
 stores them, because a thread read without its replies loses its meaning, but marks them
@@ -309,7 +310,7 @@ fixture is imported, from folders and ZIPs, no planted contact detail, token, or
 anywhere in the database file or the log, byte for byte, and no text column holds anything
 the patterns would catch. The injection line is stored only in one message's text, quoted as
 the customer wrote it. A mutation check confirmed the gate fails when redaction is switched
-off.
+off. The gate also covers sensitive GitHub label names and import or account-list filenames.
 
 ## 7. The LLM boundary
 

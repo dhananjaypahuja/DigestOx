@@ -60,11 +60,17 @@ class Directory:
         ).fetchall()
         self.by_channel_id = {r["slack_channel_id"]: r["account_id"] for r in rows if r[1]}
         self.by_channel_name = {r["slack_channel_name"]: r["account_id"] for r in rows if r[2]}
+        self.channel_id_by_account = {r["account_id"]: r["slack_channel_id"] for r in rows}
         self.by_domain = dict(conn.execute("SELECT domain, account_id FROM account_domains"))
 
     def slack_channel(self, channel_id: str, channel_name: str) -> str | None:
-        """The account a shared channel names, by ID first, then by name."""
-        return self.by_channel_id.get(channel_id) or self.by_channel_name.get(channel_name)
+        """Match by ID, or by name only until that account has claimed a channel ID."""
+        if account := self.by_channel_id.get(channel_id):
+            return account
+        account = self.by_channel_name.get(channel_name)
+        if account and self.channel_id_by_account[account] is None:
+            return account
+        return None
 
     def slack(
         self, channel_account: str | None, author_email: str | None, author_team: str | None

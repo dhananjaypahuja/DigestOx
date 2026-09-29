@@ -1,6 +1,6 @@
 # 0011. Vendor staff messages are context, not evidence; Slack falls back to email domains
 
-- **Status:** Accepted
+- **Status:** Accepted; amended 2026-09-28
 - **Date:** 2026-09-28
 - **Decided by:** Dhananjay Pahuja, at session 3's fixture review
 - **Drafted by:** Claude, AI coworker, in SageOx-recorded session 3
@@ -38,7 +38,10 @@ export format raised two questions DESIGN.md hadn't answered.
 4. **Slack attribution:** the channel names the customer first. In a channel that names no
    customer, a customer author's email domain may, matched against `account_domains`. The
    address comes from the export's `users.json` and is never stored. Otherwise the message
-   stays unattributed.
+   stays unattributed. A channel name only claims an account until its first channel ID is
+   pinned. A different ID later reusing that name does not inherit the account; it can still
+   use the email-domain fallback. This avoids silently treating a name collision as the same
+   customer's channel.
 5. **The customer list** is loaded with `pulse accounts load <file>` (JSON), not kept in
    `pulse.toml`. Loading never removes an account or a domain, because evidence points at
    them.

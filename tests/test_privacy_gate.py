@@ -17,6 +17,7 @@ from conftest import (
     GITHUB_20,
     SLACK_A,
     SLACK_B,
+    THIN,
     THIN_MANIFEST,
     open_db,
     pulse_json,
@@ -140,3 +141,35 @@ def test_redacted_text_stays_readable(imported):
     assert any("test: [redacted secret] (please rotate it after)" in t for t in texts)
     assert "Sign in as [redacted email]" in body[0]
     assert "Authorization: Bearer [redacted secret]" in body[0]
+
+
+def test_github_issue_labels_are_redacted_before_storage(thin_project, tmp_path):
+    issues = json.loads(GITHUB_17.read_text(encoding="utf-8"))
+    issues[0]["labels"].append({"name": "contact alice@copperfen.example"})
+    export = tmp_path / "issues-with-sensitive-label.json"
+    export.write_text(json.dumps(issues), encoding="utf-8")
+    code, result = pulse_json("import", "github", str(export))
+    assert code == 0, result
+    with open_db(thin_project) as conn:
+        labels = [row[0] for row in conn.execute("SELECT labels_json FROM issue_observations")]
+    assert any("contact [redacted email]" in value for value in labels)
+    assert all(find_raw(value) == [] for value in labels)
+
+
+def test_sensitive_filenames_are_not_stored_or_logged(thin_project, tmp_path):
+    accounts_file = tmp_path / "staff@bivo.example.json"
+    accounts_file.write_bytes((THIN / "accounts.json").read_bytes())
+    code, result = pulse_json("accounts", "load", str(accounts_file))
+    assert code == 0, result
+
+    export = tmp_path / "alice@copperfen.example.json"
+    export.write_bytes(GITHUB_17.read_bytes())
+    code, result = pulse_json("import", "github", str(export))
+    assert code == 0, result
+    with open_db(thin_project) as conn:
+        names = [row[0] for row in conn.execute("SELECT file_name FROM imports")]
+    log = (thin_project / ".pulse" / "pulse.log").read_text(encoding="utf-8")
+    assert all(find_raw(name) == [] for name in names)
+    assert "alice@copperfen.example" not in log
+    assert "staff@bivo.example" not in log
+    assert find_raw(log) == []
