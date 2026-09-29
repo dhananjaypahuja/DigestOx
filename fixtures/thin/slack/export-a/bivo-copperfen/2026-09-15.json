@@ -1,0 +1,51 @@
+[
+  {
+    "type": "message",
+    "text": "Our spin-studio members are missing workouts from Saturday's back-to-back classes. Only the first class made it across for most of them. Can someone email me at <mailto:ines.marlow@copperfen.example|ines.marlow@copperfen.example> with a status?",
+    "user": "U0CPF00001",
+    "ts": "1789495320.000600",
+    "team": "T0CPF00001",
+    "user_team": "T0CPF00001",
+    "source_team": "T0CPF00001",
+    "user_profile": {
+      "real_name": "Ines Marlow",
+      "display_name": "Ines",
+      "name": "ines",
+      "team": "T0CPF00001"
+    },
+    "thread_ts": "1789495320.000600",
+    "reply_count": 2,
+    "reply_users": [
+      "U0BIV00002",
+      "U0CPF00001"
+    ],
+    "replies": [
+      {
+        "user": "U0BIV00002",
+        "ts": "1789497000.000700"
+      },
+      {
+        "user": "U0CPF00001",
+        "ts": "1789575300.000800"
+      }
+    ],
+    "latest_reply": "1789575300.000800"
+  },
+  {
+    "type": "message",
+    "text": "Looking now. Which wearable providers are they on?",
+    "user": "U0BIV00002",
+    "ts": "1789497000.000700",
+    "team": "T0BIVO0001",
+    "user_team": "T0BIVO0001",
+    "source_team": "T0BIVO0001",
+    "user_profile": {
+      "real_name": "Tomasz Lind",
+      "display_name": "Tomasz",
+      "name": "tomasz",
+      "team": "T0BIVO0001"
+    },
+    "thread_ts": "1789495320.000600",
+    "parent_user_id": "U0CPF00001"
+  }
+]

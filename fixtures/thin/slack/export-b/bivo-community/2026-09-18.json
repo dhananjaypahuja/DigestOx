@@ -1,0 +1,19 @@
+[
+  {
+    "type": "message",
+    "text": "Thanks both, we're investigating with <@U0BIV00002>.",
+    "user": "U0BIV00001",
+    "ts": "1789747500.000170",
+    "team": "T0BIVO0001",
+    "user_team": "T0BIVO0001",
+    "source_team": "T0BIVO0001",
+    "user_profile": {
+      "real_name": "Priya Raman",
+      "display_name": "Priya",
+      "name": "priya",
+      "team": "T0BIVO0001"
+    },
+    "thread_ts": "1789588800.000150",
+    "parent_user_id": "U0TRM00001"
+  }
+]

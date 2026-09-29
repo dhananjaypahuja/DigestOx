@@ -1,0 +1,17 @@
+[
+  {
+    "type": "message",
+    "text": "Also seeing the workout gap here: clients who did two sessions yesterday only have the first one in Bivo.",
+    "user": "U0KTW00001",
+    "ts": "1789780200.000120",
+    "team": "T0KTW00001",
+    "user_team": "T0KTW00001",
+    "source_team": "T0KTW00001",
+    "user_profile": {
+      "real_name": "Oren Blake",
+      "display_name": "Oren",
+      "name": "oren",
+      "team": "T0KTW00001"
+    }
+  }
+]

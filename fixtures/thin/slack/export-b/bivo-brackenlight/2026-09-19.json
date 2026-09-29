@@ -1,0 +1,17 @@
+[
+  {
+    "type": "message",
+    "text": "Here's the key our integration uses if you need to test: bivo_live_sk_7Qm2Xr9LpT4vW8zN3cK6 (please rotate it after).",
+    "user": "U0BRK00001",
+    "ts": "1789857000.000140",
+    "team": "T0BRK00001",
+    "user_team": "T0BRK00001",
+    "source_team": "T0BRK00001",
+    "user_profile": {
+      "real_name": "Sade Adeyemi",
+      "display_name": "Sade",
+      "name": "sade",
+      "team": "T0BRK00001"
+    }
+  }
+]

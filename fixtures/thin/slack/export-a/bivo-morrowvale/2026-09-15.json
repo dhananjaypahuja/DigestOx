@@ -1,0 +1,17 @@
+[
+  {
+    "type": "message",
+    "text": "Roster import failed again for our Harbour Street club. Names like O'Neill and D'Souza get rejected with \"invalid character in last_name\".",
+    "user": "U0MRV00002",
+    "ts": "1789507800.000400",
+    "team": "T0MRV00001",
+    "user_team": "T0MRV00001",
+    "source_team": "T0MRV00001",
+    "user_profile": {
+      "real_name": "Luis Ferreira",
+      "display_name": "Luis",
+      "name": "luis",
+      "team": "T0MRV00001"
+    }
+  }
+]

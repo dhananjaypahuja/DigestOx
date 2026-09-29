@@ -1,0 +1,209 @@
+[
+  {
+    "author": {
+      "id": "MDQ6VXNlcjEwMDAwMDI=",
+      "is_bot": false,
+      "login": "priya-bivo",
+      "name": "Priya Raman"
+    },
+    "body": "### Area\n\nPlan engine\n\n### Environment\n\nProduction\n\n### Steps to reproduce\n\n1. Member's workouts sync after the plan is generated\n\n### Expected behaviour\n\nThe plan accounts for them\n\n### Actual behaviour\n\nThe plan recommends extra recovery\n\n### Logs\n\n```\nplan build member=MV-40213 minutes=0\n```\n\n### Version\n\n2.14.1",
+    "closedAt": null,
+    "comments": [],
+    "createdAt": "2026-09-18T21:00:00Z",
+    "labels": [
+      {
+        "id": "LA_kwDOBivo0001",
+        "name": "bug",
+        "description": "Something isn't working",
+        "color": "d73a4a"
+      },
+      {
+        "id": "LA_kwDOBivo0003",
+        "name": "P2",
+        "description": "Fix this cycle",
+        "color": "fbca04"
+      },
+      {
+        "id": "LA_kwDOBivo0013",
+        "name": "area:plan-engine",
+        "description": "Plan engine",
+        "color": "0e8a16"
+      }
+    ],
+    "number": 24,
+    "state": "OPEN",
+    "stateReason": "",
+    "title": "Weekly plan ignores workouts synced late",
+    "url": "https://github.com/bivo-fictional/bivo-platform/issues/24"
+  },
+  {
+    "author": {
+      "id": "MDQ6VXNlcjEwMDAwMDI=",
+      "is_bot": false,
+      "login": "priya-bivo",
+      "name": "Priya Raman"
+    },
+    "body": "### Area\n\nSSO\n\n### Environment\n\nProduction\n\n### Steps to reproduce\n\n1. Coach signs in through the studio's identity provider\n\n### Expected behaviour\n\nCoach lands on the dashboard\n\n### Actual behaviour\n\nCoach lands on the login page again\n\n### Logs\n\n```\nsaml acs 302 -> /login reason=clock_skew\n```\n\n### Version\n\n2.14.1",
+    "closedAt": "2026-09-19T17:05:00Z",
+    "comments": [
+      {
+        "id": "IC_kwDOBivo23a",
+        "author": {
+          "login": "tomasz-bivo"
+        },
+        "authorAssociation": "MEMBER",
+        "body": "Kettlewren's identity provider clock was 6 minutes fast; nothing to fix on our side.",
+        "createdAt": "2026-09-19T17:00:00Z",
+        "includesCreatedEdit": false,
+        "isMinimized": false,
+        "minimizedReason": "",
+        "reactionGroups": [],
+        "url": "https://github.com/bivo-fictional/bivo-platform/issues/23#issuecomment-2830"
+      }
+    ],
+    "createdAt": "2026-09-16T17:30:00Z",
+    "labels": [
+      {
+        "id": "LA_kwDOBivo0001",
+        "name": "bug",
+        "description": "Something isn't working",
+        "color": "d73a4a"
+      },
+      {
+        "id": "LA_kwDOBivo0002",
+        "name": "P1",
+        "description": "Fix this week",
+        "color": "b60205"
+      },
+      {
+        "id": "LA_kwDOBivo0012",
+        "name": "area:sso",
+        "description": "Single sign-on",
+        "color": "0e8a16"
+      }
+    ],
+    "number": 23,
+    "state": "CLOSED",
+    "stateReason": "NOT_PLANNED",
+    "title": "SSO: coaches sent back to login after SAML redirect",
+    "url": "https://github.com/bivo-fictional/bivo-platform/issues/23"
+  },
+  {
+    "author": {
+      "id": "MDQ6VXNlcjEwMDAwMDQ=",
+      "is_bot": false,
+      "login": "lferreira-mv",
+      "name": "Luis Ferreira"
+    },
+    "body": "### Area\n\nMember roster import\n\n### Environment\n\nProduction\n\n### Steps to reproduce\n\n1. Sign in as luis.ferreira@morrowvale.example\n2. Upload harbour-street.csv\n\n### Expected behaviour\n\nAll 412 members import\n\n### Actual behaviour\n\nRows with O'Neill and D'Souza are rejected\n\n### Logs\n\n```\nPOST /roster/import 422\nAuthorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJiaXZvLWRlbW8ifQ.c2lnbmF0dXJlLW5vdC1yZWFs\nerror=invalid character in last_name\n```\n\n### Version\n\n2.14.1",
+    "closedAt": null,
+    "comments": [
+      {
+        "id": "IC_kwDOBivo21a",
+        "author": {
+          "login": "priya-bivo"
+        },
+        "authorAssociation": "MEMBER",
+        "body": "Thanks Luis. Reproduced with a two-row file.",
+        "createdAt": "2026-09-16T16:00:00Z",
+        "includesCreatedEdit": false,
+        "isMinimized": false,
+        "minimizedReason": "",
+        "reactionGroups": [],
+        "url": "https://github.com/bivo-fictional/bivo-platform/issues/21#issuecomment-2810"
+      },
+      {
+        "id": "IC_kwDOBivo21b",
+        "author": {
+          "login": "lferreira-mv"
+        },
+        "authorAssociation": "NONE",
+        "body": "Any update? Our Harbour Street club opens enrolment on Monday.",
+        "createdAt": "2026-09-18T18:20:00Z",
+        "includesCreatedEdit": false,
+        "isMinimized": false,
+        "minimizedReason": "",
+        "reactionGroups": [],
+        "url": "https://github.com/bivo-fictional/bivo-platform/issues/21#issuecomment-2811"
+      }
+    ],
+    "createdAt": "2026-09-15T22:05:00Z",
+    "labels": [
+      {
+        "id": "LA_kwDOBivo0001",
+        "name": "bug",
+        "description": "Something isn't working",
+        "color": "d73a4a"
+      },
+      {
+        "id": "LA_kwDOBivo0003",
+        "name": "P2",
+        "description": "Fix this cycle",
+        "color": "fbca04"
+      },
+      {
+        "id": "LA_kwDOBivo0011",
+        "name": "area:roster-import",
+        "description": "Member roster import",
+        "color": "0e8a16"
+      }
+    ],
+    "number": 21,
+    "state": "OPEN",
+    "stateReason": "",
+    "title": "Roster import rejects last names with apostrophes",
+    "url": "https://github.com/bivo-fictional/bivo-platform/issues/21"
+  },
+  {
+    "author": {
+      "id": "MDQ6VXNlcjEwMDAwMDM=",
+      "is_bot": false,
+      "login": "dwhitcombe-mv",
+      "name": "Dana Whitcombe"
+    },
+    "body": "### Area\n\nWearable sync\n\n### Environment\n\nProduction\n\n### Steps to reproduce\n\n1. Member records three classes in one day\n2. Member syncs their watch\n\n### Expected behaviour\n\nAll three workouts appear in Bivo\n\n### Actual behaviour\n\nOnly some workouts appear\n\n### Logs\n\n```\nsync ok member=MV-39120 fetched=50\n```\n\n### Version\n\n2.14.0",
+    "closedAt": "2026-09-10T23:45:00Z",
+    "comments": [
+      {
+        "id": "IC_kwDOBivo18a",
+        "author": {
+          "login": "tomasz-bivo"
+        },
+        "authorAssociation": "MEMBER",
+        "body": "Fixed by retrying provider timeouts in 2.14.1. Closing.",
+        "createdAt": "2026-09-10T23:40:00Z",
+        "includesCreatedEdit": false,
+        "isMinimized": false,
+        "minimizedReason": "",
+        "reactionGroups": [],
+        "url": "https://github.com/bivo-fictional/bivo-platform/issues/18#issuecomment-2780"
+      }
+    ],
+    "createdAt": "2026-09-02T17:15:00Z",
+    "labels": [
+      {
+        "id": "LA_kwDOBivo0001",
+        "name": "bug",
+        "description": "Something isn't working",
+        "color": "d73a4a"
+      },
+      {
+        "id": "LA_kwDOBivo0002",
+        "name": "P1",
+        "description": "Fix this week",
+        "color": "b60205"
+      },
+      {
+        "id": "LA_kwDOBivo0010",
+        "name": "area:wearable-sync",
+        "description": "Wearable sync",
+        "color": "0e8a16"
+      }
+    ],
+    "number": 18,
+    "state": "CLOSED",
+    "stateReason": "COMPLETED",
+    "title": "Workouts missing after wearable sync on busy days",
+    "url": "https://github.com/bivo-fictional/bivo-platform/issues/18"
+  }
+]

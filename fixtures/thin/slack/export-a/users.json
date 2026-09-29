@@ -1,0 +1,125 @@
+[
+  {
+    "id": "U0BIV00001",
+    "team_id": "T0BIVO0001",
+    "name": "priya",
+    "deleted": false,
+    "real_name": "Priya Raman",
+    "is_bot": false,
+    "profile": {
+      "title": "Customer Success, Bivo",
+      "real_name": "Priya Raman",
+      "display_name": "Priya",
+      "email": "priya.raman@bivo.example",
+      "team": "T0BIVO0001",
+      "phone": "+1 415 555 0100"
+    }
+  },
+  {
+    "id": "U0BIV00002",
+    "team_id": "T0BIVO0001",
+    "name": "tomasz",
+    "deleted": false,
+    "real_name": "Tomasz Lind",
+    "is_bot": false,
+    "profile": {
+      "title": "Engineer, Bivo",
+      "real_name": "Tomasz Lind",
+      "display_name": "Tomasz",
+      "email": "tomasz.lind@bivo.example",
+      "team": "T0BIVO0001"
+    }
+  },
+  {
+    "id": "U0MRV00001",
+    "team_id": "T0MRV00001",
+    "name": "dana",
+    "deleted": false,
+    "real_name": "Dana Whitcombe",
+    "is_bot": false,
+    "profile": {
+      "title": "Member Experience Lead",
+      "real_name": "Dana Whitcombe",
+      "display_name": "Dana",
+      "email": "dana.whitcombe@morrowvale.example",
+      "team": "T0MRV00001",
+      "phone": "+1 415 555 0142"
+    }
+  },
+  {
+    "id": "U0MRV00002",
+    "team_id": "T0MRV00001",
+    "name": "luis",
+    "deleted": false,
+    "real_name": "Luis Ferreira",
+    "is_bot": false,
+    "profile": {
+      "title": "Club Systems Admin",
+      "real_name": "Luis Ferreira",
+      "display_name": "Luis",
+      "email": "luis.ferreira@morrowvale.example",
+      "team": "T0MRV00001"
+    }
+  },
+  {
+    "id": "U0CPF00001",
+    "team_id": "T0CPF00001",
+    "name": "ines",
+    "deleted": false,
+    "real_name": "Ines Marlow",
+    "is_bot": false,
+    "profile": {
+      "title": "Operations Manager",
+      "real_name": "Ines Marlow",
+      "display_name": "Ines",
+      "email": "ines.marlow@copperfen.example",
+      "team": "T0CPF00001",
+      "phone": "+44 20 7946 0958"
+    }
+  },
+  {
+    "id": "U0KTW00001",
+    "team_id": "T0KTW00001",
+    "name": "oren",
+    "deleted": false,
+    "real_name": "Oren Blake",
+    "is_bot": false,
+    "profile": {
+      "title": "Head Coach",
+      "real_name": "Oren Blake",
+      "display_name": "Oren",
+      "email": "oren.blake@kettlewren.example",
+      "team": "T0KTW00001"
+    }
+  },
+  {
+    "id": "U0BRK00001",
+    "team_id": "T0BRK00001",
+    "name": "sade",
+    "deleted": false,
+    "real_name": "Sade Adeyemi",
+    "is_bot": false,
+    "profile": {
+      "title": "Owner",
+      "real_name": "Sade Adeyemi",
+      "display_name": "Sade",
+      "email": "sade@brackenlight.example",
+      "team": "T0BRK00001"
+    }
+  },
+  {
+    "id": "U0TRM00001",
+    "team_id": "T0TRM00001",
+    "name": "rowan",
+    "deleted": false,
+    "real_name": "Rowan Pike",
+    "is_bot": false,
+    "profile": {
+      "title": "Studio Manager",
+      "real_name": "Rowan Pike",
+      "display_name": "Rowan",
+      "email": "rowan.pike@trailmix.example",
+      "team": "T0TRM00001"
+    }
+  }
+]

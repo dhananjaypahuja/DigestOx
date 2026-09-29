@@ -1,0 +1,34 @@
+[
+  {
+    "account_id": "acct_morrowvale",
+    "name": "Morrowvale Athletic Clubs",
+    "slack_channel": "bivo-morrowvale",
+    "email_domains": [
+      "morrowvale.example"
+    ]
+  },
+  {
+    "account_id": "acct_copperfen",
+    "name": "Copperfen Fitness",
+    "slack_channel": "bivo-copperfen",
+    "email_domains": [
+      "copperfen.example"
+    ]
+  },
+  {
+    "account_id": "acct_kettlewren",
+    "name": "Kettlewren Coaching",
+    "slack_channel": "bivo-kettlewren",
+    "email_domains": [
+      "kettlewren.example"
+    ]
+  },
+  {
+    "account_id": "acct_brackenlight",
+    "name": "Brackenlight Strength",
+    "slack_channel": "bivo-brackenlight",
+    "email_domains": [
+      "brackenlight.example"
+    ]
+  }
+]

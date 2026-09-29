@@ -1,0 +1,17 @@
+[
+  {
+    "type": "message",
+    "text": "Another one: members' plans this week recommend recovery days even though they trained hard. Is the plan engine missing their workouts?",
+    "user": "U0MRV00001",
+    "ts": "1789660200.000500",
+    "team": "T0MRV00001",
+    "user_team": "T0MRV00001",
+    "source_team": "T0MRV00001",
+    "user_profile": {
+      "real_name": "Dana Whitcombe",
+      "display_name": "Dana",
+      "name": "dana",
+      "team": "T0MRV00001"
+    }
+  }
+]

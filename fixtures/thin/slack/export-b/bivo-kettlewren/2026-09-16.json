@@ -1,0 +1,17 @@
+[
+  {
+    "type": "message",
+    "text": "Three of our coaches got bounced back to the login page after the SAML redirect this morning. Clearing cookies didn't help.",
+    "user": "U0KTW00001",
+    "ts": "1789569900.000110",
+    "team": "T0KTW00001",
+    "user_team": "T0KTW00001",
+    "source_team": "T0KTW00001",
+    "user_profile": {
+      "real_name": "Oren Blake",
+      "display_name": "Oren",
+      "name": "oren",
+      "team": "T0KTW00001"
+    }
+  }
+]

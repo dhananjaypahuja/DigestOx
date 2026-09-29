@@ -1,0 +1,51 @@
+[
+  {
+    "type": "message",
+    "text": "Anyone else seeing wearable sync gaps after busy class days?",
+    "user": "U0TRM00001",
+    "ts": "1789588800.000150",
+    "team": "T0TRM00001",
+    "user_team": "T0TRM00001",
+    "source_team": "T0TRM00001",
+    "user_profile": {
+      "real_name": "Rowan Pike",
+      "display_name": "Rowan",
+      "name": "rowan",
+      "team": "T0TRM00001"
+    },
+    "thread_ts": "1789588800.000150",
+    "reply_count": 2,
+    "reply_users": [
+      "U0BIV00001",
+      "U0KTW00001"
+    ],
+    "replies": [
+      {
+        "user": "U0KTW00001",
+        "ts": "1789590000.000160"
+      },
+      {
+        "user": "U0BIV00001",
+        "ts": "1789747500.000170"
+      }
+    ],
+    "latest_reply": "1789747500.000170"
+  },
+  {
+    "type": "message",
+    "text": "Yes, we are. Clients with more than one session a day.",
+    "user": "U0KTW00001",
+    "ts": "1789590000.000160",
+    "team": "T0KTW00001",
+    "user_team": "T0KTW00001",
+    "source_team": "T0KTW00001",
+    "user_profile": {
+      "real_name": "Oren Blake",
+      "display_name": "Oren",
+      "name": "oren",
+      "team": "T0KTW00001"
+    },
+    "thread_ts": "1789588800.000150",
+    "parent_user_id": "U0TRM00001"
+  }
+]

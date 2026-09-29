@@ -1,0 +1,142 @@
+[
+  {
+    "id": "C0MRV00001",
+    "name": "bivo-morrowvale",
+    "created": 1772409600,
+    "creator": "U0BIV00001",
+    "is_archived": false,
+    "is_general": false,
+    "members": [
+      "U0BIV00001",
+      "U0BIV00002",
+      "U0MRV00001",
+      "U0MRV00002",
+      "U0CPF00001",
+      "U0KTW00001",
+      "U0BRK00001",
+      "U0TRM00001"
+    ],
+    "topic": {
+      "value": "",
+      "creator": "",
+      "last_set": 0
+    },
+    "purpose": {
+      "value": "Shared channel with Morrowvale Athletic Clubs",
+      "creator": "U0BIV00001",
+      "last_set": 0
+    }
+  },
+  {
+    "id": "C0CPF00001",
+    "name": "bivo-copperfen",
+    "created": 1772409600,
+    "creator": "U0BIV00001",
+    "is_archived": false,
+    "is_general": false,
+    "members": [
+      "U0BIV00001",
+      "U0BIV00002",
+      "U0MRV00001",
+      "U0MRV00002",
+      "U0CPF00001",
+      "U0KTW00001",
+      "U0BRK00001",
+      "U0TRM00001"
+    ],
+    "topic": {
+      "value": "",
+      "creator": "",
+      "last_set": 0
+    },
+    "purpose": {
+      "value": "Shared channel with Copperfen Fitness",
+      "creator": "U0BIV00001",
+      "last_set": 0
+    }
+  },
+  {
+    "id": "C0KTW00001",
+    "name": "bivo-kettlewren",
+    "created": 1772409600,
+    "creator": "U0BIV00001",
+    "is_archived": false,
+    "is_general": false,
+    "members": [
+      "U0BIV00001",
+      "U0BIV00002",
+      "U0MRV00001",
+      "U0MRV00002",
+      "U0CPF00001",
+      "U0KTW00001",
+      "U0BRK00001",
+      "U0TRM00001"
+    ],
+    "topic": {
+      "value": "",
+      "creator": "",
+      "last_set": 0
+    },
+    "purpose": {
+      "value": "Shared channel with Kettlewren Coaching",
+      "creator": "U0BIV00001",
+      "last_set": 0
+    }
+  },
+  {
+    "id": "C0BRK00001",
+    "name": "bivo-brackenlight",
+    "created": 1772409600,
+    "creator": "U0BIV00001",
+    "is_archived": false,
+    "is_general": false,
+    "members": [
+      "U0BIV00001",
+      "U0BIV00002",
+      "U0MRV00001",
+      "U0MRV00002",
+      "U0CPF00001",
+      "U0KTW00001",
+      "U0BRK00001",
+      "U0TRM00001"
+    ],
+    "topic": {
+      "value": "",
+      "creator": "",
+      "last_set": 0
+    },
+    "purpose": {
+      "value": "Shared channel with Brackenlight Strength",
+      "creator": "U0BIV00001",
+      "last_set": 0
+    }
+  },
+  {
+    "id": "C0COM00001",
+    "name": "bivo-community",
+    "created": 1772409600,
+    "creator": "U0BIV00001",
+    "is_archived": false,
+    "is_general": false,
+    "members": [
+      "U0BIV00001",
+      "U0BIV00002",
+      "U0MRV00001",
+      "U0MRV00002",
+      "U0CPF00001",
+      "U0KTW00001",
+      "U0BRK00001",
+      "U0TRM00001"
+    ],
+    "topic": {
+      "value": "",
+      "creator": "",
+      "last_set": 0
+    },
+    "purpose": {
+      "value": "Bivo customers helping each other; not one customer",
+      "creator": "U0BIV00001",
+      "last_set": 0
+    }
+  }
+]

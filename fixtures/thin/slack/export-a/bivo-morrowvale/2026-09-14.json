@@ -1,0 +1,68 @@
+[
+  {
+    "type": "message",
+    "text": "Morning! A few of our members say last Tuesday's HIIT classes never showed up in Bivo after syncing their watches. The workouts are in the wearable app. Is this <https://github.com/bivo-fictional/bivo-platform/issues/18|#18> again? It was closed last week.",
+    "user": "U0MRV00001",
+    "ts": "1789402320.000100",
+    "team": "T0MRV00001",
+    "user_team": "T0MRV00001",
+    "source_team": "T0MRV00001",
+    "user_profile": {
+      "real_name": "Dana Whitcombe",
+      "display_name": "Dana",
+      "name": "dana",
+      "team": "T0MRV00001"
+    },
+    "thread_ts": "1789402320.000100",
+    "reply_count": 2,
+    "reply_users": [
+      "U0BIV00001",
+      "U0MRV00001"
+    ],
+    "replies": [
+      {
+        "user": "U0BIV00001",
+        "ts": "1789405500.000200"
+      },
+      {
+        "user": "U0MRV00001",
+        "ts": "1789407600.000300"
+      }
+    ],
+    "latest_reply": "1789407600.000300"
+  },
+  {
+    "type": "message",
+    "text": "Thanks Dana, can you send a member ID or two? We'll check the sync logs.",
+    "user": "U0BIV00001",
+    "ts": "1789405500.000200",
+    "team": "T0BIVO0001",
+    "user_team": "T0BIVO0001",
+    "source_team": "T0BIVO0001",
+    "user_profile": {
+      "real_name": "Priya Raman",
+      "display_name": "Priya",
+      "name": "priya",
+      "team": "T0BIVO0001"
+    },
+    "thread_ts": "1789402320.000100",
+    "parent_user_id": "U0MRV00001"
+  },
+  {
+    "type": "message",
+    "text": "Sure: members MV-40213 and MV-40877. Both did three classes that day. You can reach me on +1 (415) 555-0142 if that's easier.",
+    "user": "U0MRV00001",
+    "ts": "1789407600.000300",
+    "team": "T0MRV00001",
+    "user_team": "T0MRV00001",
+    "source_team": "T0MRV00001",
+    "user_profile": {
+      "real_name": "Dana Whitcombe",
+      "display_name": "Dana",
+      "name": "dana",
+      "team": "T0MRV00001"
+    },
+    "thread_ts": "1789402320.000100",
+    "parent_user_id": "U0MRV00001"
+  }
+]

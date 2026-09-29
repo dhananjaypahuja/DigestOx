@@ -1,0 +1,18 @@
+[
+  {
+    "type": "message",
+    "subtype": "channel_join",
+    "text": "<@U0TRM00001> has joined the channel",
+    "user": "U0TRM00001",
+    "ts": "1789398000.000090",
+    "team": "T0TRM00001",
+    "user_team": "T0TRM00001",
+    "source_team": "T0TRM00001",
+    "user_profile": {
+      "real_name": "Rowan Pike",
+      "display_name": "Rowan",
+      "name": "rowan",
+      "team": "T0TRM00001"
+    }
+  }
+]
