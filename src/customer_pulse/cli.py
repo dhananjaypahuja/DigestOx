@@ -488,7 +488,7 @@ def replay_export(ctx: typer.Context, file: FileArg, as_json: JsonFlag = False) 
 
 @replay_app.command("load")
 def replay_load(ctx: typer.Context, file: FileArg, as_json: JsonFlag = False) -> None:
-    """Load a replay file's responses, checking each request's hash."""
+    """Load replay responses after checking request/response integrity and privacy."""
 
     def action(config: Config) -> Result:
         from customer_pulse import llm

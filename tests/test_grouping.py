@@ -109,6 +109,12 @@ def test_the_gate_refuses_a_request_holding_a_contact_detail():
     assert err.value.code == "request_gate"
 
 
+def test_the_response_gate_checks_keys_as_well_as_values():
+    with pytest.raises(PulseError) as err:
+        llm.check_response({"alice@copperfen.example": "ordinary value"}, "group")
+    assert err.value.code == "response_gate"
+
+
 def test_injection_text_appears_only_inside_evidence_delimiters(thin_project):
     _import(*ALL)
     model = FakeModel()
@@ -329,6 +335,41 @@ def test_a_bad_answer_is_refused_and_not_cached(thin_project):
     assert _group(thin_project, FakeModel())["signals_grouped"] > 0
 
 
+def test_a_reply_with_raw_contact_data_is_refused_and_not_cached(thin_project):
+    _import(*ALL)
+
+    class LeakingModel(FakeModel):
+        def send(self, body):
+            reply = super().send(body)
+            answer = json.loads(reply.text)
+            answer["new_themes"][0]["summary"] = "Contact alice@copperfen.example"
+            return llm.Reply(
+                json.dumps(answer), reply.input_tokens, reply.output_tokens, reply.model
+            )
+
+    with pytest.raises(PulseError) as err:
+        _group(thin_project, LeakingModel())
+    assert err.value.code == "response_gate"
+    with _conn(thin_project) as conn:
+        assert conn.execute("SELECT count(*) FROM llm_cache").fetchone()[0] == 0
+        assert conn.execute("SELECT count(*) FROM themes").fetchone()[0] == 0
+
+
+def test_a_reply_from_another_model_is_refused_and_not_cached(thin_project):
+    _import(*ALL)
+
+    class WrongModel(FakeModel):
+        def send(self, body):
+            reply = super().send(body)
+            return llm.Reply(reply.text, reply.input_tokens, reply.output_tokens, "another-model")
+
+    with pytest.raises(PulseError) as err:
+        _group(thin_project, WrongModel())
+    assert err.value.code == "model_mismatch"
+    with _conn(thin_project) as conn:
+        assert conn.execute("SELECT count(*) FROM llm_cache").fetchone()[0] == 0
+
+
 def test_a_replay_file_that_was_edited_is_refused(thin_project, tmp_path):
     _import(*ALL)
     _group(thin_project, FakeModel())
@@ -340,6 +381,41 @@ def test_a_replay_file_that_was_edited_is_refused(thin_project, tmp_path):
     code, result = pulse_json("replay", "load", str(replay_file))
     assert code == 1
     assert result["error"]["code"] == "invalid_replay_file"
+
+
+def test_an_edited_replay_response_is_refused_before_caching(thin_project, tmp_path):
+    _import(*ALL)
+    _group(thin_project, FakeModel())
+    replay_file = tmp_path / "replay.json"
+    pulse_json("replay", "export", str(replay_file))
+    entries = json.loads(replay_file.read_text())
+    entries[0]["response"]["new_themes"][0]["summary"] = "A changed summary."
+    replay_file.write_text(json.dumps(entries))
+    with _conn(thin_project) as conn:
+        conn.execute("DELETE FROM llm_cache")
+    code, result = pulse_json("replay", "load", str(replay_file))
+    assert code == 1
+    assert result["error"]["code"] == "invalid_replay_file"
+    with _conn(thin_project) as conn:
+        assert conn.execute("SELECT count(*) FROM llm_cache").fetchone()[0] == 0
+
+
+def test_a_replay_response_with_raw_contact_data_is_refused(thin_project, tmp_path):
+    _import(*ALL)
+    _group(thin_project, FakeModel())
+    replay_file = tmp_path / "replay.json"
+    pulse_json("replay", "export", str(replay_file))
+    entries = json.loads(replay_file.read_text())
+    entries[0]["response"]["new_themes"][0]["summary"] = "Contact alice@copperfen.example"
+    entries[0]["response_sha256"] = llm.response_sha256(entries[0]["response"])
+    replay_file.write_text(json.dumps(entries))
+    with _conn(thin_project) as conn:
+        conn.execute("DELETE FROM llm_cache")
+    code, result = pulse_json("replay", "load", str(replay_file))
+    assert code == 1
+    assert result["error"]["code"] == "response_gate"
+    with _conn(thin_project) as conn:
+        assert conn.execute("SELECT count(*) FROM llm_cache").fetchone()[0] == 0
 
 
 def _transport_with(response) -> llm.AnthropicTransport:

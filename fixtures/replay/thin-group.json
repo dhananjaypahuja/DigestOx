@@ -192,6 +192,7 @@
         }
       ]
     },
+    "response_sha256": "1e62d8cd2cb6bba54810e2365b50dd51b86316f1a4fbd9bb610c2b4db0210f15",
     "schema_version": "group-schema-v1",
     "task": "group"
   }

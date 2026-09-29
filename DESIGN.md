@@ -337,9 +337,10 @@ off. The gate also covers sensitive GitHub label names and import or account-lis
   thread context reach the model only inside `<evidence>` and `<context>` blocks whose
   contents are escaped, so customer text can't close a block or forge one. The system prompt
   says everything inside them is data, never instructions.
-- **Only checked answers are saved:** a response is cached after it passes its schema and the
-  task's own checks (for grouping: every signal assigned exactly once, to a listed or
-  proposed theme). A bad answer is asked again, never replayed.
+- **Only checked answers are saved:** a response is cached after it passes its schema, the
+  response privacy gate, and the task's own checks (for grouping: every signal assigned exactly
+  once, to a listed or proposed theme). A reply from a different model is refused. A bad answer
+  is asked again, never replayed.
 - **Replay mode:** each saved response is keyed by a hash of the complete request: model,
   effort, prompt and schema version, and the full rendered input, including the current
   themes and any approved mapping. Changing any of those needs a key. The demo's responses
@@ -347,7 +348,8 @@ off. The gate also covers sensitive GitHub label names and import or account-lis
   without a key. Replay output is labelled as replay. Replay proves reproducibility, not model
   quality.
   `pulse replay export <file>` writes the saved responses, and `pulse replay load <file>`
-  loads them after checking each request's hash.
+  loads them after checking each request and response hash, model settings, and the response
+  privacy gate. These hashes detect accidental edits; they are not signatures.
 
 ## 8. Themes, links, and the digest
 

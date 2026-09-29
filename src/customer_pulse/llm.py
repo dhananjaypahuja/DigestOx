@@ -139,7 +139,7 @@ def _strings(value: Any) -> list[str]:
     if isinstance(value, str):
         return [value]
     if isinstance(value, dict):
-        return [s for v in value.values() for s in _strings(v)]
+        return [s for pair in value.items() for v in pair for s in _strings(v)]
     if isinstance(value, list):
         return [s for v in value for s in _strings(v)]
     return []
@@ -153,6 +153,18 @@ def check_request(request: Request) -> None:
             "request_gate",
             f"the {request.task} request holds unredacted {', '.join(found)}, so it wasn't sent",
             hint="this is a bug in how Pulse built the request; nothing left this machine",
+        )
+
+
+def check_response(response: Any, task: str) -> None:
+    """Refuse generated or imported text that would put raw details in the cache."""
+    found = sorted({kind for text in _strings(response) for kind in find_raw(text)})
+    if found:
+        raise PulseError(
+            "response_gate",
+            f"the {task} response holds unredacted {', '.join(found)}, so it wasn't saved",
+            hint="the model or replay file returned private text; correct the source "
+            "before retrying",
         )
 
 
@@ -191,6 +203,12 @@ def call(
             hint="run once in live mode, or load the replay file that holds this request",
         )
     reply = transport().send(request.body)
+    if reply.model != request.body["model"]:
+        raise PulseError(
+            "model_mismatch",
+            f"the {request.task} response came from a different model, so it wasn't saved",
+            hint="Pulse does not allow a fallback model (decision 0012)",
+        )
     data = _validate(reply.text, output, request)
     check(data)
     conn.execute(
@@ -216,7 +234,7 @@ def call(
 
 def _validate(text: str, output: type[BaseModel], request: Request) -> BaseModel:
     try:
-        return output.model_validate_json(text)
+        data = output.model_validate_json(text)
     except ValidationError as exc:
         raise PulseError(
             "invalid_model_output",
@@ -224,6 +242,8 @@ def _validate(text: str, output: type[BaseModel], request: Request) -> BaseModel
             f"{exc.error_count()} problem(s), first: {exc.errors()[0]['msg']}",
             hint="nothing was saved; re-run, and report it if it repeats",
         ) from exc
+    check_response(json.loads(text), request.task)
+    return data
 
 
 def cost(reply: Reply) -> float:
@@ -299,6 +319,11 @@ class AnthropicTransport:
 # Replay files
 
 
+def response_sha256(response: Any) -> str:
+    canonical = json.dumps(response, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
 def export_replay(conn: sqlite3.Connection, task: str | None = None) -> list[dict[str, Any]]:
     """The cached requests and responses, in a stable order, for a committed replay file."""
     rows = conn.execute(
@@ -322,13 +347,14 @@ def export_replay(conn: sqlite3.Connection, task: str | None = None) -> list[dic
             },
             "request": json.loads(row["request_json"]),
             "response": json.loads(row["response_json"]),
+            "response_sha256": response_sha256(json.loads(row["response_json"])),
         }
         for row in rows
     ]
 
 
 def import_replay(conn: sqlite3.Connection, entries: list[dict[str, Any]], clock: Clock) -> int:
-    """Load a replay file into the cache. Each entry's hash is recomputed and checked."""
+    """Load only intact, privacy-checked replay entries into the cache."""
     added = 0
     for entry in entries:
         request = Request(
@@ -341,6 +367,22 @@ def import_replay(conn: sqlite3.Connection, entries: list[dict[str, Any]], clock
                 hint="the replay file was edited; export it again",
             )
         check_request(request)
+        if response_sha256(entry["response"]) != entry.get("response_sha256"):
+            raise PulseError(
+                "invalid_replay_file",
+                f"a {request.task} entry's hash doesn't match its response",
+                hint="the replay file was edited; export it again",
+            )
+        if (
+            entry["model"] != request.body["model"]
+            or entry["effort"] != request.body["output_config"]["effort"]
+        ):
+            raise PulseError(
+                "invalid_replay_file",
+                f"a {request.task} entry's model settings don't match its request",
+                hint="the replay file was edited; export it again",
+            )
+        check_response(entry["response"], request.task)
         cursor = conn.execute(
             "INSERT OR IGNORE INTO llm_cache (request_sha256, task, model, effort, "
             "prompt_version, schema_version, request_json, response_json, created_at) "

@@ -103,7 +103,7 @@ does the same on every run.
 | `3ab6bcb` | fix: report missing Anthropic credentials before a live request | 281 passed |
 | `715312e` | docs: record decision 0012 and commit session 4's live grouping response | 282 passed; ruff clean |
 
-This record is committed after `715312e`. Pushing waits for Dhananjay's OK.
+This record is committed in `af5a9f2`. Pushing waits for Dhananjay's OK.
 
 ## Critiques and open items
 
@@ -125,4 +125,4 @@ the review commands; replayable corrections; and merge and split with lineage. T
 approval tests and the cutoff boundary cases come with it. The low-confidence assignments above
 are natural first review targets.
 
-Retrieve this record with `ox plan view 2026-09-29-session-4-the-claude-module-the`.
+Retrieve this record with `ox plan view 2026-09-29-session-4-the-claude-module`.
