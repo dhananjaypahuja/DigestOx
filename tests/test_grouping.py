@@ -398,3 +398,32 @@ def test_live_mode_without_credentials_fails_cleanly(thin_project, monkeypatch):
     assert result["error"]["code"] == "no_api_key"
     with _conn(thin_project) as conn:
         assert conn.execute("SELECT status FROM runs").fetchone()[0] == "failed"
+
+
+# The committed live response (session 4's one live run, 2026-09-29)
+
+REPLAY = Path(__file__).resolve().parent.parent / "fixtures" / "replay" / "thin-group.json"
+
+
+def test_the_committed_live_response_replays_without_a_key(thin_project, monkeypatch):
+    """If this fails with replay_miss, the grouping request changed: the prompt, the schema,
+    the rendering, the settings, or the fixtures. That needs a new live run and a new replay
+    file, deliberately."""
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    _import(*ALL)
+    code, loaded = pulse_json("replay", "load", str(REPLAY))
+    assert code == 0, loaded
+    code, result = pulse_json("group", "--window", WEEK)
+    assert code == 0, result
+    assert result["from_cache"] is True
+    assert result["cost_usd"] == 0
+    facts = {
+        t["theme_id"]: (t["signal_count"], t["affected_customer_count"]) for t in result["themes"]
+    }
+    assert facts == {"th_0001": (8, 3), "th_0002": (4, 2), "th_0003": (1, 1), "th_0004": (1, 1)}
+    with _conn(thin_project) as conn:
+        injection = conn.execute(
+            "SELECT a.theme_id FROM assignments AS a JOIN signals AS s USING (signal_id) "
+            "WHERE s.text_redacted LIKE '%Ignore all previous instructions%'"
+        ).fetchone()[0]
+    assert injection == "th_0002"  # grouped by what the customer reported: the roster import

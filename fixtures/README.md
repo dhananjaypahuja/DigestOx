@@ -32,5 +32,14 @@ The planted cases are listed in `manifest.json`. The privacy-relevant ones are a
 an email address in Slack's `mailto:` markup, an email and a bearer token in an issue body, a
 pasted API key, and a prompt-injection line that must survive as quoted evidence.
 
+## `replay/`: saved model responses
+
+`thin-group.json` holds the response from session 4's one live grouping run on the thin
+fixtures (`claude-opus-5-5` at high effort, 29 September 2026; 3,327 input and 1,836 output
+tokens, $0.05). `pulse replay load` checks each request's hash, and `pulse group` then answers
+from it with no key and no cost. It holds only redacted text; the injection line appears as
+quoted evidence. If the grouping prompt, schema, settings, or fixtures change, the request's
+hash changes and replay reports a miss until a new live run replaces this file.
+
 The full two-week dataset (session 11) and its evaluation answers (under `eval/`, readable only
 by `pulse eval`) arrive later.

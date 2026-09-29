@@ -16,7 +16,7 @@ recorded [ox](https://github.com/sageox/ox) sessions.
 ## Status
 
 v1 is being built in 13 recorded sessions, thin slice first; the approved plan lives in the
-SageOx ledger. **Sessions 1 to 3 are done:**
+SageOx ledger. **Sessions 1 to 4 are done:**
 
 - the SQLite schema, with every table and view the design calls for
 - the time model: UTC storage, a configured timezone, half-open windows, and cutoffs
@@ -24,8 +24,10 @@ SageOx ledger. **Sessions 1 to 3 are done:**
 - Bivo's fictional vendor repo and a preflight against its real ox sessions (session 2)
 - the Slack and GitHub readers, attribution, and pattern redaction, with a privacy gate
   proving no raw contact detail or secret is stored or logged (session 3)
+- the Claude module, with a request gate, a request-hash cache, and replay, and theme
+  grouping with stable IDs (session 4)
 
-Themes, the digest, review, and publishing arrive in sessions 4 to 8.
+The digest, review, and publishing arrive in sessions 5 to 8.
 
 ## Quick start
 
@@ -51,7 +53,16 @@ The GitHub file is `gh issue list --state all --json
 number,title,body,url,author,createdAt,state,stateReason,closedAt,labels,comments` output.
 Importing the same file twice changes nothing. Only redacted text is stored.
 
-No API key is needed yet. The Claude module arrives in session 4.
+Group the imported signals into themes:
+
+```sh
+uv run pulse replay load fixtures/replay/thin-group.json   # saved responses: no key, no cost
+uv run pulse group --window 2026-09-14..2026-09-20          # answers only from saved responses
+uv run pulse group --window 2026-09-14..2026-09-20 --live   # calls Claude; spends API credit
+```
+
+`--live` needs Anthropic credentials in the environment (`ANTHROPIC_API_KEY`, or an
+`ant auth login` profile). Pulse never stores or prints them.
 
 Every command accepts `--json`. Errors in JSON mode print `{"error": {"code": ..., "message":
 ...}}` and exit with status 1, so an agent can drive Pulse too.
@@ -68,6 +79,9 @@ Pulse reads `pulse.toml` from the working directory, from `--config PATH`, or fr
 | `vendor.name` | none | The vendor whose customers Pulse tracks |
 | `vendor.email_domains` | none | Its staff's email domains. Their messages are kept as context but never counted as customer evidence |
 | `vendor.slack_team_ids` | none | Its Slack workspace IDs, for the same purpose |
+| `llm.model` | `claude-opus-5-5` | The one model every task uses (decision 0012). Changing it invalidates saved responses |
+| `llm.effort` | `high` | `low`, `medium`, `high`, `xhigh`, or `max` |
+| `llm.max_tokens` | `16000` | The most a reply may use, thinking included |
 
 Unknown keys are errors, so a typo can't silently fall back to a default.
 

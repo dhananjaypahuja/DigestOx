@@ -8,7 +8,8 @@ Status: draft for review, written in the first session (2026-09-27). The facts a
 section 14 were checked against ox 0.18.0 on that date. Session 1b (2026-09-28) updated
 sections 4, 5, 8, 9, and 14 to 16 for the foundation repairs after Codex's review, and again
 after Codex's re-review. Session 3 (2026-09-28) updated sections 4 to 6, 12, and 16 for the
-readers, attribution, redaction, and vendor messages.
+readers, attribution, redaction, and vendor messages. Session 4 (2026-09-29) updated sections 7, 8, and
+13 for the Claude module, the request gate, and grouping.
 
 ## 1. The problem
 
@@ -317,26 +318,45 @@ off. The gate also covers sensitive GitHub label names and import or account-lis
 - **Provider:** Claude only, through Anthropic's official Python SDK. Every call goes through
   one small module that returns validated, typed results. Tests use a fake and never touch
   the network.
-- **Model:** the kickoff sets `claude-opus-5` at `effort: high` for every task (grouping,
-  digest writing, mapping suggestions, validation explanations), kept in config. The model ID
-  and parameters will be confirmed against the `claude-api` skill or Anthropic's documentation
-  when the module is written, not from memory. The real cost is reported after the first full
-  run.
-- **Key:** read from `ANTHROPIC_API_KEY`. If it isn't set, an interactive terminal gets a
-  hidden prompt that keeps the key in memory for that run only (never written, logged, or
-  echoed) plus instructions for setting the variable. A non-interactive run exits with a
-  message saying what to set.
+- **Model:** `claude-opus-5-5` at `effort: high` for every task (grouping, digest writing,
+  mapping suggestions, validation explanations), kept in `pulse.toml` under `[llm]`. Confirmed
+  against Anthropic's current reference on 2026-09-29: it's the current Opus, its effort
+  defaults to `medium` so Pulse sets `high` explicitly, its thinking is always adaptive, and
+  typed results come from structured JSON output (`output_config.format`), validated again
+  with Pydantic. **No fallback model:** a refusal or a truncated reply stops the run, so a
+  saved response is always the named model's (decision
+  [0012](docs/decisions/0012-one-model-no-fallback-for-consistent-results.md)). Each run
+  records its tokens and cost.
+- **Key:** the Anthropic SDK finds credentials itself (`ANTHROPIC_API_KEY`, or an
+  `ant auth login` profile). Pulse never stores, logs, or prints them, and checks for them
+  before anything is sent: without them, `--live` fails with `no_api_key`. Nothing but
+  `pulse group --live` ever calls the model; without `--live`, Pulse answers only from saved
+  responses.
+- **The request gate** (`llm.check_request`) refuses any request whose body holds an email
+  address, a phone number, or a secret, before it is sent, cached, or replayed. Evidence and
+  thread context reach the model only inside `<evidence>` and `<context>` blocks whose
+  contents are escaped, so customer text can't close a block or forge one. The system prompt
+  says everything inside them is data, never instructions.
+- **Only checked answers are saved:** a response is cached after it passes its schema and the
+  task's own checks (for grouping: every signal assigned exactly once, to a listed or
+  proposed theme). A bad answer is asked again, never replayed.
 - **Replay mode:** each saved response is keyed by a hash of the complete request: model,
   effort, prompt and schema version, and the full rendered input, including the current
   themes and any approved mapping. Changing any of those needs a key. The demo's responses
   are exported to a committed replay file so anyone can run the demo on the committed inputs
   without a key. Replay output is labelled as replay. Replay proves reproducibility, not model
   quality.
+  `pulse replay export <file>` writes the saved responses, and `pulse replay load <file>`
+  loads them after checking each request's hash.
 
 ## 8. Themes, links, and the digest
 
-**Themes.** The model sees the current themes (IDs, titles, summaries, a little evidence) and
-assigns new signals to them, proposing a new theme only when nothing fits. Signals a person
+**Themes.** `pulse group --window …` sends the model the active themes (IDs, titles,
+summaries) and only the customer signals in the run's snapshot and window that no one has
+assigned yet, each with its thread up to the cutoff (vendor replies included, as context). The
+model assigns them, proposing a new theme only when nothing fits; a proposed theme gets the
+next `th_NNNN`. Signals the model already assigned keep their assignment, so a re-run over the
+same evidence makes no model call and changes nothing. Signals a person
 has assigned are pinned and never re-assigned by the model. `merge` keeps the surviving ID and
 records `merged_into`; `split` keeps the original ID for what remains and mints new IDs for the
 parts that leave. A theme merges only into an active theme, and merges and split lineage are
@@ -616,7 +636,8 @@ automatic issue creation or customer replies, and PDFs or other arbitrary docume
 **Open (ask when reached):**
 1. Stretch goals: a murmur when a theme spikes (scoped with `--files` to the theme's code
    paths, `critical` kept for regressions), and publishing Pulse as a team skill.
-2. The model ID, to be confirmed as described in section 7.
+2. ~~The model ID~~: settled in session 4 as `claude-opus-5-5` at high effort, with no
+   fallback (decision 0012).
 
 ## 14. Verified ox facts (0.18.0, commit `f52d5c94`, checked 2026-09-27)
 

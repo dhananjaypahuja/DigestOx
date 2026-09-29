@@ -19,3 +19,4 @@ sessions and decided by Dhananjay Pahuja. When the first records were drafted (2
 | [0009](0009-keep-review-context-in-sageox.md) | Keep every session's decisions and evidence available through SageOx | Accepted; amended 2026-09-27 |
 | [0010](0010-bind-every-run-to-an-evidence-snapshot.md) | Bind every run to an evidence snapshot, so later imports can't change its facts | Accepted; amended 2026-09-28 |
 | [0011](0011-vendor-messages-are-context-and-slack-falls-back-to-email-domains.md) | Vendor staff messages are context, not evidence; Slack falls back to email domains | Accepted |
+| [0012](0012-one-model-no-fallback-for-consistent-results.md) | One model, no fallback: Claude Opus 5.5 at high effort, for consistent, replayable results | Accepted |
