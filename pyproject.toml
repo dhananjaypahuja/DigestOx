@@ -8,6 +8,8 @@ license-files = ["LICENSE"]
 authors = [{ name = "Dhananjay Pahuja" }]
 requires-python = ">=3.12"
 dependencies = [
+    "anthropic>=1.9.0",
+    "pydantic>=2.13.5",
     "typer>=0.12",
     # zoneinfo needs an IANA database; Windows has none built in.
     "tzdata>=2024.1; sys_platform == 'win32'",

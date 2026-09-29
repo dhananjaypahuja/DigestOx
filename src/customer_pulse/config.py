@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import tomllib
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -21,7 +21,13 @@ DEFAULT_STATE_DIR = ".pulse"
 _KNOWN_KEYS: dict[str, set[str]] = {
     "pulse": {"timezone", "state_dir"},
     "vendor": {"name", "email_domains", "slack_team_ids"},
+    "llm": {"model", "effort", "max_tokens"},
 }
+
+DEFAULT_MODEL = "claude-opus-5-5"
+DEFAULT_EFFORT = "high"
+DEFAULT_MAX_TOKENS = 16000
+EFFORTS = ("low", "medium", "high", "xhigh", "max")
 
 
 @dataclass(frozen=True)
@@ -35,11 +41,22 @@ class Vendor:
 
 
 @dataclass(frozen=True)
+class LLMSettings:
+    """The one model every task uses (decision 0012). Changing any of these changes every
+    request's hash, so saved responses no longer answer it."""
+
+    model: str = DEFAULT_MODEL
+    effort: str = DEFAULT_EFFORT
+    max_tokens: int = DEFAULT_MAX_TOKENS
+
+
+@dataclass(frozen=True)
 class Config:
     file: Path | None
     timezone: ZoneInfo
     state_dir: Path
     vendor: Vendor = Vendor()
+    llm: LLMSettings = field(default_factory=lambda: LLMSettings())
 
     @property
     def db_path(self) -> Path:
@@ -74,6 +91,7 @@ def load_config(explicit: Path | None, cwd: Path) -> Config:
         timezone=_timezone(section.get("timezone", DEFAULT_TIMEZONE), path),
         state_dir=_state_dir(section.get("state_dir", DEFAULT_STATE_DIR), base, path),
         vendor=_vendor(data.get("vendor", {}), path),
+        llm=_llm(data.get("llm", {}), path),
     )
 
 
@@ -150,3 +168,25 @@ def _vendor(section: dict[str, Any], path: Path | None) -> Vendor:
         )
     teams = _strings(section.get("slack_team_ids", []), "vendor.slack_team_ids", path)
     return Vendor(name=name, email_domains=domains, slack_team_ids=teams)
+
+
+def _llm(section: dict[str, Any], path: Path | None) -> LLMSettings:
+    model = section.get("model", DEFAULT_MODEL)
+    effort = section.get("effort", DEFAULT_EFFORT)
+    max_tokens = section.get("max_tokens", DEFAULT_MAX_TOKENS)
+    if not isinstance(model, str) or not model.startswith("claude-"):
+        raise PulseError("invalid_config", f"{_where(path)}llm.model must be a Claude model ID")
+    if effort not in EFFORTS:
+        raise PulseError(
+            "invalid_config",
+            f"{_where(path)}llm.effort must be one of {', '.join(EFFORTS)}",
+        )
+    if (
+        not isinstance(max_tokens, int)
+        or isinstance(max_tokens, bool)
+        or not (1024 <= max_tokens <= 64000)
+    ):
+        raise PulseError(
+            "invalid_config", f"{_where(path)}llm.max_tokens must be a whole number, 1024 to 64000"
+        )
+    return LLMSettings(model=model, effort=effort, max_tokens=max_tokens)

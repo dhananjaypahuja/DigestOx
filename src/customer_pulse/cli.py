@@ -382,3 +382,136 @@ def _render_import(result: Result) -> None:
             f"  note      {result['kept_first_attribution']} records kept the customer "
             "their first import gave them"
         )
+
+
+# pulse group
+
+
+@app.command()
+def group(
+    ctx: typer.Context,
+    window: Annotated[
+        str, typer.Option("--window", help="Local calendar days, e.g. 2026-09-14..2026-09-20.")
+    ],
+    cutoff: Annotated[
+        str | None,
+        typer.Option("--cutoff", help="An ISO 8601 instant inside the window; default its end."),
+    ] = None,
+    live: Annotated[
+        bool,
+        typer.Option(
+            "--live",
+            help="Call Claude for requests not saved yet. This spends API credit. Without it, "
+            "Pulse answers only from saved responses (replay).",
+        ),
+    ] = False,
+    as_json: JsonFlag = False,
+) -> None:
+    """Assign new customer signals in a window to themes, which keep stable IDs."""
+
+    def action(config: Config) -> Result:
+        from customer_pulse import llm, themes
+        from customer_pulse.timewin import Window, parse_instant
+
+        try:
+            cut = parse_instant(cutoff) if cutoff else None
+            span = Window.parse(window, config.timezone, cut)
+        except ValueError as exc:
+            raise PulseError("invalid_window", str(exc)) from exc
+        with closing(_open(config)) as conn:
+            result = themes.group(
+                conn,
+                config,
+                span,
+                llm.LIVE if live else llm.REPLAY,
+                llm.AnthropicTransport,
+                clock_from_env(os.environ),
+            )
+        state.append_log(
+            config,
+            {"event": "group", **{k: v for k, v in result.items() if k != "themes"}},
+        )
+        return result
+
+    _run(ctx, as_json, action, _render_group)
+
+
+def _render_group(result: Result) -> None:
+    source = "saved responses" if result["from_cache"] or result["mode"] == "replay" else "Claude"
+    typer.echo(
+        f"Grouping run {result['run_id']} ({result['mode']}, {result['model']} at "
+        f"{result['effort']} effort) for {result['window']}: {result['signals_grouped']} new "
+        f"signals from {source}; {len(result['new_themes'])} new themes."
+    )
+    if result["input_tokens"] or result["output_tokens"]:
+        typer.echo(
+            f"  cost      {result['input_tokens']} input and {result['output_tokens']} output "
+            f"tokens, ${result['cost_usd']:.4f}"
+        )
+    for theme in result["themes"]:
+        typer.echo(
+            f"  {theme['theme_id']}  {theme['title']}  [{theme['signal_count']} signals, "
+            f"{theme['affected_customer_count']} customers, {theme['unattributed_count']} "
+            f"unattributed; {theme['confirmed_assignment_count']} confirmed, "
+            f"{theme['proposed_assignment_count']} proposed]"
+        )
+
+
+# pulse replay export | load
+
+replay_app = typer.Typer(help="Saved model responses, so runs replay without a key.")
+app.add_typer(replay_app, name="replay")
+
+
+@replay_app.command("export")
+def replay_export(ctx: typer.Context, file: FileArg, as_json: JsonFlag = False) -> None:
+    """Write every saved model response to a replay file."""
+
+    def action(config: Config) -> Result:
+        from customer_pulse import llm
+
+        with closing(_open(config)) as conn:
+            entries = llm.export_replay(conn)
+        file.write_text(
+            json.dumps(entries, indent=2, sort_keys=True, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
+        return {"file": str(file), "entries": len(entries)}
+
+    _run(
+        ctx,
+        as_json,
+        action,
+        lambda r: typer.echo(f"Wrote {r['entries']} responses to {r['file']}."),
+    )
+
+
+@replay_app.command("load")
+def replay_load(ctx: typer.Context, file: FileArg, as_json: JsonFlag = False) -> None:
+    """Load a replay file's responses, checking each request's hash."""
+
+    def action(config: Config) -> Result:
+        from customer_pulse import llm
+
+        try:
+            entries = json.loads(file.read_text(encoding="utf-8"))
+        except FileNotFoundError as exc:
+            raise PulseError("file_not_found", f"{file} does not exist") from exc
+        except json.JSONDecodeError as exc:
+            raise PulseError("invalid_replay_file", f"{file} is not valid JSON: {exc}") from exc
+        with closing(_open(config)) as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            try:
+                added = llm.import_replay(conn, entries, clock_from_env(os.environ))
+                conn.execute("COMMIT")
+            except BaseException:
+                conn.execute("ROLLBACK")
+                raise
+        return {"file": str(file), "entries": len(entries), "added": added}
+
+    _run(
+        ctx,
+        as_json,
+        action,
+        lambda r: typer.echo(f"Loaded {r['added']} new of {r['entries']} saved responses."),
+    )

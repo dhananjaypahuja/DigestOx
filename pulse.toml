@@ -13,3 +13,10 @@ state_dir = ".pulse"
 name = "Bivo"
 email_domains = ["bivo.example"]
 slack_team_ids = ["T0BIVO0001"]
+
+# The one model every task uses (decision 0012): the current Opus at high effort, with no
+# fallback model, so saved results never drift. Changing these invalidates saved responses.
+[llm]
+model = "claude-opus-5-5"
+effort = "high"
+max_tokens = 16000
