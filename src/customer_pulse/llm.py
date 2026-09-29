@@ -243,15 +243,21 @@ class AnthropicTransport:
         import anthropic
 
         self._anthropic = anthropic
+        missing = PulseError(
+            "no_api_key",
+            "live mode needs Anthropic credentials, and none were found",
+            hint="export ANTHROPIC_API_KEY in the shell that runs pulse, or run `ant auth "
+            "login`; or leave out --live to use saved responses",
+        )
         try:
             self._client = anthropic.Anthropic()
         except anthropic.AnthropicError as exc:
-            raise PulseError(
-                "no_api_key",
-                "live mode needs Anthropic credentials, and none were found",
-                hint="export ANTHROPIC_API_KEY in your shell, or run `ant auth login`; "
-                "or use replay mode",
-            ) from exc
+            raise missing from exc
+        # The SDK only complains at request time, so check before anything is sent.
+        if all(
+            getattr(self._client, a, None) is None for a in ("api_key", "auth_token", "credentials")
+        ):
+            raise missing
 
     def send(self, body: dict[str, Any]) -> Reply:
         anthropic = self._anthropic

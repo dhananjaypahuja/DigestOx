@@ -386,3 +386,15 @@ def test_group_without_live_needs_saved_responses(thin_project):
     code, result = pulse_json("group", "--window", WEEK)
     assert code == 1
     assert result["error"]["code"] == "replay_miss"
+
+
+def test_live_mode_without_credentials_fails_cleanly(thin_project, monkeypatch):
+    for name in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_PROFILE"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("ANTHROPIC_CONFIG_DIR", str(thin_project / "no-profiles"))
+    _import(*ALL)
+    code, result = pulse_json("group", "--window", WEEK, "--live")
+    assert code == 1
+    assert result["error"]["code"] == "no_api_key"
+    with _conn(thin_project) as conn:
+        assert conn.execute("SELECT status FROM runs").fetchone()[0] == "failed"
