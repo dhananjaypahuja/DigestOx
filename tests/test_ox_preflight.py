@@ -126,6 +126,35 @@ def test_a_trailer_naming_another_session_does_not_resolve(repos, ox):
     assert check(report, 2).details == [f"{SHA[:7]} names {OTHER_ID}"]
 
 
+def test_codex_transcript_resolves_a_trailer_when_metadata_has_no_remote_id(repos, ox):
+    vendor = repos[0]
+    ox.answers[("metadata", vendor.name)] = {"AgentID": "OxyOAs", "RepoID": "repo_test"}
+    ox.answers[("view", vendor.name)] = {
+        "entries": [
+            {
+                "type": "tool",
+                "tool_output": (
+                    f"commit {SHA} (HEAD -> main)\nAuthor: Example\n\n"
+                    f"    SageOx-Session: https://sageox.ai/c/{BIVO_ID}\n"
+                ),
+            }
+        ]
+    }
+    report = preflight.preflight(*repos, run=ox)
+    assert check(report, 2).passed
+    assert check(report, 3).passed
+
+
+def test_an_incidental_session_id_in_the_transcript_does_not_resolve(repos, ox):
+    vendor = repos[0]
+    ox.answers[("metadata", vendor.name)] = {"AgentID": "OxyOAs"}
+    ox.answers[("view", vendor.name)] = {
+        "entries": [{"type": "assistant", "content": f"Earlier work: {BIVO_ID}"}]
+    }
+    report = preflight.preflight(*repos, run=ox)
+    assert check(report, 2).passed is False
+
+
 def test_transcript_actions_must_touch_the_committed_files(repos, ox):
     vendor = repos[0]
     ox.answers[("view", vendor.name)] = {
@@ -169,6 +198,14 @@ def test_file_actions_reads_the_shapes_agents_record():
         {"name": "NotebookEdit", "input": {"notebook_path": "/repo/e.ipynb"}},
         {"name": "Read", "input": {"file_path": "/repo/ignored.py"}},
         {"name": "Edit", "input": {"file_path": "/repo/a.py"}},
+        {
+            "type": "tool",
+            "tool_input": (
+                'const patch = "*** Begin Patch\\n'
+                "*** Update File: /repo/codex.py\\n"
+                '*** End Patch"; await tools.apply_patch(patch);'
+            ),
+        },
     ]
     assert preflight.file_actions({"entries": transcript}) == [
         ("Edit", "/repo/a.py"),
@@ -176,6 +213,7 @@ def test_file_actions_reads_the_shapes_agents_record():
         ("write_file", "c.md"),
         ("apply_patch", "d.py"),
         ("NotebookEdit", "/repo/e.ipynb"),
+        ("apply_patch", "/repo/codex.py"),
     ]
 
 

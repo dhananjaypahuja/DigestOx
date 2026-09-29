@@ -437,11 +437,13 @@ five things:
 - DigestOx sessions never appear in Bivo's list, and Bivo's never appear in DigestOx's
 
 `scripts/ox_preflight.py` implements it (session 2). A trailer resolves when the session ID it
-names appears in the session's `ox session view --json --metadata`. The changed files are the
-paths git lists for that commit. The transcript check needs a write or edit action on one of
-those files, and it reads the tool-call shapes that Claude Code, ox, and Codex record. An
-uploaded session can arrive as a stub, so the preflight downloads it once (`ox session
-download`) before reading it.
+names appears in the session's `ox session view --json --metadata`. Ox 0.18.0 does not expose
+that remote ID in local metadata, so the preflight also reads the recorded commit output in
+the same session. The changed files are the paths git lists for that commit. The transcript
+check needs a write or edit action on one of those files. For Codex's `functions.exec` shape,
+it decodes escaped patch newlines and recovers `apply_patch` file markers. An uploaded session
+can arrive as a stub, so the preflight downloads it once (`ox session download`) before
+reading it.
 
 ## 11. Evaluation
 

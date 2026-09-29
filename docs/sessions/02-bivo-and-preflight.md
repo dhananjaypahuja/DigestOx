@@ -2,16 +2,15 @@
 
 - **Date:** 2026-09-28 (PDT)
 - **Outcome:** Bivo's local repo exists, with five code areas, tests, and borrowed conventions,
-  and it's connected to SageOx. A preflight proves that ox's session history works for it,
-  against a real Bivo session.
+  and it's connected to SageOx. A real Bivo session produced a bounded commit, and the
+  preflight passes all five checks against it.
 - **Plan:** `2026-09-27-customer-pulse-v1-build-plan`, session 2. Its gates are Dhananjay's OK
   for `ox init` (given on 2026-09-28: "yes start") and Dhananjay starting the short Bivo
   session.
-- **Recording:** this work is in SageOx session `ses_01a0e910`, which continues from the end of
-  session 1b. The short Bivo session is recorded in Bivo's own ledger.
-- **Status:** waiting for the short Bivo session. When Dhananjay reported it done, Bivo still
-  had no new commit and an empty session list, and Claude Code had no project folder for the
-  repo, so the session hadn't run there yet. Everything else in session 2 is done.
+- **Recording:** Claude's setup is in SageOx session `ses_01a0e910`. The short Bivo session is
+  `ses_01a0ea6a-7eac-7376-a7ea-aad43720da8b` in Bivo's own ledger.
+- **Status:** complete locally. Claude Code could not run here because its CLI was not
+  authenticated, so Codex ran the bounded session with a Bivo recording.
 
 ## Bivo's repo
 
@@ -54,8 +53,8 @@ Bivo doesn't use the `bypassPermissions` agent setting. Every email address and 
 `.example` domain.
 
 **Two planted details:**
-- A spelling mistake ("thier") in `bivo/coach_tools/service.py`'s docstring, for the short
-  session below to fix.
+- A spelling mistake ("thier") in `bivo/coach_tools/service.py`'s docstring, now fixed in
+  `bf84216` by the short Bivo session.
 - The defect session 7 fixes. `WearableSyncService.sync_member` fetches only the first page of
   a provider's workouts (providers return at most 50 to a page), then advances the member's
   sync time. On a busy day the later pages are never fetched. The tests pass, because they
@@ -73,8 +72,9 @@ have gone unrecorded. DigestOx got those hooks from `ox init` on 2026-09-26 (`97
 had no settings file yet. Commit `4d66e88` merges the same six entries in, next to the lint
 hook, and `ox integrate list` now reports Claude Code as integrated.
 
-My own commits in Bivo carry no `SageOx-Session:` trailer: ox's commit hook uses the recording
-that is active in that repo, and this recording belongs to DigestOx.
+Claude's first two Bivo commits carried no `SageOx-Session:` trailer: ox's commit hook uses the
+recording active in that repo, while those commits came from a DigestOx session. The bounded
+Bivo commit `bf84216` carries its Bivo recording's trailer.
 
 ## The preflight
 
@@ -94,6 +94,15 @@ pass and fail cases against fake ox and git output.
 **Baseline run**, before any Bivo session: check 1 unmet (0 sessions listed), checks 2 to 4
 waiting, and check 5 passing (Bivo 0, DigestOx 7).
 
+**Real-session run:** Bivo commit `bf84216` corrected `thier` to `their` and added the
+requested `CHANGELOG.md`. `uv run pytest` passed 23 tests and `uv run ruff check .` was clean.
+The first preflight run exposed two parser gaps: ox 0.18.0's session metadata did not expose
+the remote `ses_…` ID used by the commit trailer, and Codex's recorded `functions.exec`
+input held an escaped patch rather than a separate edit tool entry. After the parser and
+regression tests were extended, all five checks passed. The session is uploaded, its trailer
+resolves to `bf84216`, Git reports both changed files, the transcript records patch actions
+on both, and the Bivo and DigestOx session lists are separate.
+
 ## Documents
 
 - **DESIGN.md:** Bivo's layout and code-area prefixes (section 12), the planted wearable-sync
@@ -110,18 +119,16 @@ waiting, and check 5 passing (Bivo 0, DigestOx 7).
 |---|---|---|---|
 | Bivo | `82dead4` | feat: Bivo platform with five code areas, a REST layer, a worker, and tests | 23 passed; ruff clean |
 | Bivo | `4d66e88` | chore: connect the repo to SageOx | 23 passed; `ox integrate list`: Claude Code integrated |
+| Bivo | `bf84216` | docs(coach-tools): fix a spelling mistake in the attention rules | 23 passed; ruff clean; SageOx trailer present |
 | DigestOx | `f31e9a4` | feat: add the engineering-attention preflight for the vendor repo | 186 passed; `ruff check` and `ruff format --check` clean |
 
-This record, DESIGN.md, and the upstream draft are committed together, after `f31e9a4`. None
-of session 2's DigestOx commits is pushed yet.
+This record, DESIGN.md, and the upstream draft were committed together after `f31e9a4`.
+The parser fix and this verified outcome are a subsequent local change. DigestOx `origin/main`
+remains at `b165529`; session 2's two commits and the forthcoming review commit are local.
 
 ## Next step
 
-**1. Dhananjay runs the short Bivo session** (about two minutes):
-- In a terminal, run `cd ~/Workbench/bivo-platform && claude`, and trust the folder and its
-  hooks if asked.
-- Paste this prompt and nothing else, approve its edit, file creation, test runs, and commit,
-  then type `/exit` so ox uploads the recording:
+The short Bivo session has run. Its prompt was:
 
   ```
   This is a short session to check Bivo's tooling. Make exactly this change and nothing else:
@@ -134,18 +141,17 @@ of session 2's DigestOx commits is pushed yet.
   Then tell me you're done.
   ```
 
-**2. The next agent checks it.** In Bivo, `git log -1` should show that commit, with a
-`SageOx-Session:` trailer. Then run the preflight from Bivo:
+In Bivo, `git log -1` shows that commit with a `SageOx-Session:` trailer. Run the
+preflight from Bivo to repeat the check:
 
 ```sh
 cd ~/Workbench/bivo-platform
 uv run --project ~/Workbench/DigestOx python ~/Workbench/DigestOx/scripts/ox_preflight.py
 ```
 
-All five checks must pass. If the transcript check fails because ox records tool calls in a
-shape the parser doesn't know, extend `file_actions` and its tests; don't weaken the check.
-Record the output here, commit, and refresh this checkpoint.
+All five checks pass. The transcript parser and its tests were extended for the real Codex
+recording shape without weakening the check.
 
-**3. Push, with Dhananjay's OK**, then start session 3.
+**Next:** Push the DigestOx session-2 commits with Dhananjay's OK, then start session 3.
 
 Retrieve this record with `ox plan view 2026-09-28-session-2-bivo-s-repo`.

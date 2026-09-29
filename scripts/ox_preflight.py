@@ -172,10 +172,49 @@ def session_ids(node: object) -> set[str]:
     return {found for text in strings(node) for found in SESSION_ID.findall(text)}
 
 
+def recorded_commit_trailers(node: object) -> set[tuple[str, str]]:
+    """Commit and trailer pairs shown together in this session's git output.
+
+    Ox 0.18.0's session metadata omits the remote ``ses_`` ID. A recorded full commit
+    and its trailer can prove linkage; an incidental mention of the ID cannot.
+    """
+    found: set[tuple[str, str]] = set()
+    commit_block = re.compile(
+        r"(?ms)^commit ([0-9a-f]{40})[^\n]*\n(.*?)(?=^commit [0-9a-f]{40}[^\n]*\n|\Z)"
+    )
+    trailer_line = re.compile(r"(?m)^\s+SageOx-Session:\s+https://sageox\.ai/c/(ses_[\w-]+)\s*$")
+
+    def walk(item: object) -> None:
+        if isinstance(item, dict):
+            output = item.get("tool_output")
+            if item.get("type") == "tool" and isinstance(output, str):
+                for block in commit_block.finditer(output):
+                    found.update(
+                        (block.group(1), session_id)
+                        for session_id in trailer_line.findall(block.group(2))
+                    )
+            for value in item.values():
+                walk(value)
+        elif isinstance(item, list):
+            for value in item:
+                walk(value)
+
+    walk(node)
+    return found
+
+
+def _patch_paths(text: str) -> list[str]:
+    """Read patch paths from a patch or from source that contains an escaped patch string."""
+    # Codex records the JavaScript passed to ``tools.apply_patch``.  In that source the patch's
+    # newlines are represented as ``\\n`` rather than real line breaks.
+    normalized = text.replace("\\r\\n", "\n").replace("\\n", "\n").replace("\\r", "\r")
+    return PATCH_FILE.findall(normalized)
+
+
 def _paths(tool: str, arguments: object) -> list[str]:
     if isinstance(arguments, str):
         if tool == "apply_patch":
-            return PATCH_FILE.findall(arguments)
+            return _patch_paths(arguments)
         try:
             arguments = json.loads(arguments)
         except json.JSONDecodeError:
@@ -183,7 +222,7 @@ def _paths(tool: str, arguments: object) -> list[str]:
     if not isinstance(arguments, dict):
         return []
     if tool == "apply_patch":
-        return [path for text in strings(arguments) for path in PATCH_FILE.findall(text)]
+        return [path for text in strings(arguments) for path in _patch_paths(text)]
     for key in PATH_KEYS:
         value = arguments.get(key)
         if isinstance(value, str) and value:
@@ -205,6 +244,15 @@ def file_actions(node: object) -> list[tuple[str, str]]:
                             if (tool, path) not in found:
                                 found.append((tool, path))
                         break
+            # Codex stores a call made through ``functions.exec`` as a JavaScript program in
+            # ``tool_input`` and does not preserve the nested tool name separately.  The patch
+            # source still contains its file markers, so recover those paths without counting
+            # arbitrary shell commands as writes.
+            raw_input = item.get("tool_input")
+            if item.get("type") == "tool" and isinstance(raw_input, str):
+                for path in _paths("apply_patch", raw_input) if "apply_patch" in raw_input else []:
+                    if ("apply_patch", path) not in found:
+                        found.append(("apply_patch", path))
             for value in item.values():
                 walk(value)
         elif isinstance(item, list):
@@ -274,9 +322,17 @@ def preflight(
     )
 
     metadata = view_session(run, vendor, name, "--metadata")
-    own_ids = session_ids(metadata)
+    transcript = view_session(run, vendor, name)
+    metadata_ids = session_ids(metadata)
+    recorded_links = recorded_commit_trailers(transcript)
+    # Current ox metadata exposes the local agent/session name but not the remote ``ses_`` URL
+    # used by commit trailers. A recorded full commit and trailer pair is the fallback proof.
     trailers = session_trailers(run, vendor)
-    commits = [sha for sha, ids in trailers.items() if own_ids & set(ids)]
+    commits = [
+        sha
+        for sha, ids in trailers.items()
+        if metadata_ids & set(ids) or any((sha, session_id) in recorded_links for session_id in ids)
+    ]
     trailer_details = [f"{sha[:7]} names {', '.join(ids)}" for sha, ids in trailers.items()]
     checks.append(
         Check(
@@ -286,7 +342,10 @@ def preflight(
             (
                 f"{len(commits)} commit(s) name this session: {', '.join(c[:7] for c in commits)}"
                 if commits
-                else f"no commit's trailer names {', '.join(sorted(own_ids)) or 'this session'}"
+                else (
+                    "no commit's trailer resolves to "
+                    f"{', '.join(sorted(metadata_ids)) or 'this session'}"
+                )
             ),
             trailer_details or ["no commit carries a SageOx-Session trailer"],
         )
@@ -303,7 +362,6 @@ def preflight(
         )
     )
 
-    transcript = view_session(run, vendor, name)
     actions = [(tool, repo_relative(path, vendor)) for tool, path in file_actions(transcript)]
     matched = sorted({path for _, path in actions} & set(changed))
     checks.append(
