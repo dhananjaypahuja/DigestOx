@@ -28,10 +28,14 @@ Session 3's 259 tests and Ruff checks passed, but three untested inputs breached
 
 ## Commit and SageOx handoff
 
-This record accompanies one local repair commit. The exact commit SHA and `ox plan view` retrieval slug are added to the ledger checkpoint after the commit, not via a recursive bookkeeping commit. Claude's two-line uncommitted edit to the session 3 record (its own SHA and exact retrieval command) is included with this real commit. No push was attempted.
+This record accompanies local repair commit `a4442c435ce2116c1d7fce53a6bab91ca8a8385a`.
+Claude's two-line uncommitted edit to the session 3 record (its own SHA and exact retrieval
+command) is included in that commit. No push was attempted during the review; Dhananjay
+subsequently authorized pushing the local commits and syncing the SageOx ledger. Retrieve this evidence checkpoint
+with `ox plan view 2026-09-29-session-3b-codex-review-and-reader`.
 
-The prior open limits remain: an older Slack export can revert an edit; GitHub authors remain unattributed; unrecognizable secrets and phone numbers under nine digits evade pattern redaction; trailer-to-session mapping is scheduled for session 8. Session 2's `Oxx108` showed as uploaded during this review, an update from the handoff. Remote SageOx sync/search indexing of this checkpoint was not verified. The older Codex/Claude recordings were reported only and left untouched.
+The prior open limits remain: an older Slack export can revert an edit; GitHub authors remain unattributed; unrecognizable secrets and phone numbers under nine digits evade pattern redaction; trailer-to-session mapping is scheduled for session 8. Session 2's `Oxx108` showed as uploaded during this review, an update from the handoff. `ox status` authenticated successfully but reported four uncommitted ledger changes and a stuck daemon, so remote sharing/search indexing of this checkpoint remains unverified. The ledger view's metadata attached this record to older Codex session `ses_01a0e513`, despite the record and commit trailer naming the review session `ses_01a0eb29`. These status issues are reported, not repaired. The older Codex/Claude recordings were reported only and left untouched.
 
 ## Next step
 
-Claude can start session 4 after reviewing this repair commit and the regression tests. The request gate should continue scanning every stored text field, including labels and file metadata, before any live model call. No live API call or push was authorized by this review.
+Claude can start session 4 after reviewing this repair commit and the regression tests. The request gate should continue scanning every stored text field, including labels and file metadata, before any live model call. No live API call was authorized; the later push and SageOx sync authorization does not cover API spending.
