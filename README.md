@@ -16,13 +16,16 @@ recorded [ox](https://github.com/sageox/ox) sessions.
 ## Status
 
 v1 is being built in 13 recorded sessions, thin slice first; the approved plan lives in the
-SageOx ledger. **Session 1 (foundation) is done:**
+SageOx ledger. **Sessions 1 to 3 are done:**
 
 - the SQLite schema, with every table and view the design calls for
 - the time model: UTC storage, a configured timezone, half-open windows, and cutoffs
 - `pulse init` and `pulse status`
+- Bivo's fictional vendor repo and a preflight against its real ox sessions (session 2)
+- the Slack and GitHub readers, attribution, and pattern redaction, with a privacy gate
+  proving no raw contact detail or secret is stored or logged (session 3)
 
-Ingestion, themes, the digest, review, and publishing arrive in sessions 3 to 8.
+Themes, the digest, review, and publishing arrive in sessions 4 to 8.
 
 ## Quick start
 
@@ -34,6 +37,19 @@ uv run pulse init              # create the local database
 uv run pulse status            # add --json for machine-readable output
 uv run pytest
 ```
+
+Import the thin fictional fixtures:
+
+```sh
+uv run pulse accounts load fixtures/thin/accounts.json
+uv run pulse import slack fixtures/thin/slack/export-a      # a Slack export ZIP or folder
+uv run pulse import slack fixtures/thin/slack/export-b      # overlaps export-a; no duplicates
+uv run pulse import github fixtures/thin/github/issues-2026-09-20.json
+```
+
+The GitHub file is `gh issue list --state all --json
+number,title,body,url,author,createdAt,state,stateReason,closedAt,labels,comments` output.
+Importing the same file twice changes nothing. Only redacted text is stored.
 
 No API key is needed yet. The Claude module arrives in session 4.
 
@@ -48,7 +64,10 @@ Pulse reads `pulse.toml` from the working directory, from `--config PATH`, or fr
 | Key | Default | Meaning |
 |---|---|---|
 | `pulse.timezone` | `UTC` | IANA timezone for digest windows. A window covers whole local calendar days here; everything is stored in UTC. |
-| `pulse.state_dir` | `.pulse` | Where the SQLite database lives, relative to the config file. Git ignores it. |
+| `pulse.state_dir` | `.pulse` | Where the SQLite database and `pulse.log` live, relative to the config file. Git ignores it. |
+| `vendor.name` | none | The vendor whose customers Pulse tracks |
+| `vendor.email_domains` | none | Its staff's email domains. Their messages are kept as context but never counted as customer evidence |
+| `vendor.slack_team_ids` | none | Its Slack workspace IDs, for the same purpose |
 
 Unknown keys are errors, so a typo can't silently fall back to a default.
 
@@ -72,6 +91,8 @@ for reproducible runs.
 | [`docs/kickoff.md`](docs/kickoff.md) | The project brief |
 | [`docs/upstream/`](docs/upstream/) | Draft issues about ox, found while building this, for filing upstream |
 | `src/customer_pulse/` | The package; SQL migrations live in `migrations/` |
+| `fixtures/` | Fictional fixtures in native export formats; see [`fixtures/README.md`](fixtures/README.md) |
+| `scripts/` | The Bivo preflight and the fixture builder |
 | `tests/` | pytest suite |
 
 ## License

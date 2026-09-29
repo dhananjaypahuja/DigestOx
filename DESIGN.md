@@ -7,7 +7,8 @@
 Status: draft for review, written in the first session (2026-09-27). The facts about `ox` in
 section 14 were checked against ox 0.18.0 on that date. Session 1b (2026-09-28) updated
 sections 4, 5, 8, 9, and 14 to 16 for the foundation repairs after Codex's review, and again
-after Codex's re-review.
+after Codex's re-review. Session 3 (2026-09-28) updated sections 4 to 6, 12, and 16 for the
+readers, attribution, redaction, and vendor messages.
 
 ## 1. The problem
 
@@ -106,7 +107,8 @@ SQLite through Python's built-in `sqlite3`, in one local file that stays out of 
 with numbered migrations (`src/customer_pulse/migrations/0001_initial.sql`, …) recorded in
 `schema_migrations`, so a later move to PostgreSQL stays cheap. A shipped migration is never
 edited: Pulse refuses a database whose applied migrations changed after they were applied, so
-every fix is a new migration (`0002` to `0005` came from Codex's reviews). **SQLite is the
+every fix is a new migration (`0002` to `0005` came from Codex's reviews, and `0006` records
+who wrote each signal). **SQLite is the
 single source of truth**, including the theme registry and the corrections log. The one
 committed derivative is the replay file (section 7).
 
@@ -114,8 +116,8 @@ committed derivative is the replay file (section 7).
 |---|---|---|
 | `accounts` | customer | `account_id` (`acct_morrowvale`), name, Slack channel id and name |
 | `account_domains` | email domain | `domain` → `account_id`; used to attribute CSV tickets |
-| `imports` | import batch | source, file name, `content_sha256` (a file's hash identifies the batch, not the evidence in it), time, new/updated/unchanged counts, mapping used |
-| `signals` | Slack message, issue comment, or ticket | unique `(source, source_key)`; `account_id` (null = unattributed); author name; `occurred_at` (UTC); **redacted** text; hash of the raw text; URL; thread key; issue number for comments; `is_pulse_output`; first and last import |
+| `imports` | import batch | source, file name, `content_sha256` (a file's hash identifies the batch, not the evidence in it; an unzipped Slack export's hash covers every file's path and content), time, new/updated/unchanged counts, mapping used |
+| `signals` | Slack message, issue comment, or ticket | unique `(source, source_key)`; `account_id` (null = unattributed); author name; `author_role` (`customer` or `vendor`, section 6); `occurred_at` (UTC); **redacted** text; hash of the raw text; URL; thread key; issue number for comments; `is_pulse_output`; first and last import |
 | `signal_revisions` | change to an existing record | old and new raw-text hash, import, time; edits are stored deliberately, never silently overwritten |
 | `issues` | GitHub issue | number, title, redacted body, URL, author, `created_at`, first and last import; its state lives in `issue_observations` |
 | `issue_observations` | issue × import | state, `stateReason`, `closed_at`, labels as exported; history, never updated or deleted |
@@ -162,7 +164,7 @@ corrupting evidence (decisions [0007](docs/decisions/0007-enforce-invariants-in-
   finishes once, and its evidence snapshot is recorded only while it runs.
 - **Evidence:** issue observations and session evidence are history. Signals, issues, and
   runs are kept, and so is a session once a run has used it. A signal's identity, time,
-  customer, thread, issue, and first import are fixed, and so is an issue's creation time;
+  customer, author role, thread, issue, and first import are fixed, and so is an issue's creation time;
   only a signal's text can be revised. Once a run has used a session, its evidence and times
   are fixed.
 - **History:** corrections and assignments are append-only, enforced by triggers.
@@ -204,7 +206,10 @@ Programming errors still raise, so a bug can't hide behind a tidy message. Every
 waits up to five seconds (`LOCK_WAIT_SECONDS`) for another command's lock.
 
 The doorbell queue from the kickoff is gone (section 10), so nothing lives outside SQLite
-except the replay file and logs.
+except the replay file and the log. The log, `pulse.log` in the state directory, is one JSON
+event per line: event names, file names, IDs, and counts, never customer text. It is created
+0600, never followed through a link, and refused like the database if other users can read
+it. The check happens before any import writes, so a refusal leaves the database untouched.
 
 ## 5. Record identity, windows, and time
 
@@ -213,11 +218,20 @@ records instead of duplicating them:
 
 | Record | Identity |
 |---|---|
-| Slack message | channel id + `ts` (threads by `thread_ts`) |
+| Slack message | channel id + `ts`. Every message gets a thread key: its parent's `thread_ts`, or its own `ts`, so a message that gains replies in a later export keeps its thread |
 | GitHub issue | issue number |
 | GitHub comment | the comment `id` from `gh` output |
 | CSV ticket | the ticket-ID column when the mapping finds one; otherwise a hash of the normalized row. Rows without an ID can't be matched across edited exports |
-| Import batch | SHA-256 of the file content |
+| Import batch | SHA-256 of the file content (for an unzipped Slack export, of every file's path and content). The same batch again changes nothing |
+
+**Re-importing.** A record Pulse hasn't seen is added. One whose raw text is unchanged only
+notes the later import. One whose raw text changed is revised: its old redacted text goes to
+`signal_revisions`. Everything else a run relies on is fixed at the first import (decision
+[0010](docs/decisions/0010-bind-every-run-to-an-evidence-snapshot.md)). If a later import
+would attribute a record differently, the first attribution stays and the import says how
+many records that affected. An import that would change fixed evidence, such as an issue's
+creation time, fails as a whole with `evidence_conflict`. Each GitHub import adds one
+observation per issue.
 
 **Windows and cutoffs.** A digest covers `[start, end)` in the configured timezone, stored in
 UTC. The cutoff defaults to the window end. When the model reads a thread, the thread stops
@@ -250,14 +264,34 @@ an earlier run.
 Order matters: **parse → attribute → redact → store.** Attribution can use email domains, so
 it happens before redaction.
 
-- **Slack:** the channel names the customer.
+- **Slack:** the shared channel names the customer. In a channel that names no customer, a
+  customer author's email domain may, matched against `account_domains`; the address comes
+  from the export's `users.json` and is never stored (decision
+  [0011](docs/decisions/0011-vendor-messages-are-context-and-slack-falls-back-to-email-domains.md)).
 - **CSV:** an account column, or the requester's email domain matched against
   `account_domains`.
 - **GitHub:** authors stay unattributed unless a mapping names them.
 - Evidence that can't be attributed is **counted as unattributed, never guessed**.
 
-Redaction uses patterns, never an LLM: email addresses, phone numbers, and secrets or tokens.
-People's names are kept, so readers know who reported or decided what. Only redacted text is
+The customer list comes from `pulse accounts load <file>`: each account's ID, name, shared
+Slack channel, and email domains. The first Slack export that shows a customer's channel
+records its ID. Loading never removes an account or a domain, and a domain or channel belongs
+to one account.
+
+**Vendor staff.** Shared channels and issue threads carry the vendor's replies too. Pulse
+stores them, because a thread read without its replies loses its meaning, but marks them
+`author_role = 'vendor'`, and `v_run_signals` leaves them out, so no fact counts them. Slack
+staff are recognised by `vendor.slack_team_ids` or `vendor.email_domains` in `pulse.toml`, and
+GitHub staff by `authorAssociation` (`OWNER`, `MEMBER`, `COLLABORATOR`). An import without a
+`[vendor]` section warns that staff replies will count.
+
+Redaction uses patterns, never an LLM (`redact.py`): email addresses, phone numbers with 9 to
+15 digits, and secrets. Secrets are recognised by shape (JWTs, `*_live_*` and `sk-` keys,
+GitHub, Slack, and AWS tokens, private-key blocks) or by label (`Bearer …`, `api_key=…`,
+`password: …`, where the label is kept). Each match becomes a marker such as
+`[redacted email]`, so the evidence stays readable. Slack markup is rendered first
+(`<mailto:…|…>` becomes the address, `<@U…>` the person's name), so the patterns see what a
+person would. People's names are kept, so readers know who reported or decided what. Only redacted text is
 stored, sent to the model, or published, and generated text is redacted again before
 publishing. If a real customer's data agreement ever forbade sending names to an LLM, stable
 aliases would be the fallback; that is noted here, not built.
@@ -269,6 +303,13 @@ real evidence (one planted case depends on it), so it is stored and sent only in
 delimited evidence blocks, and the typed output schema keeps it from steering the result.
 Nothing is published until a test proves that generated text containing a contact detail is
 redacted first.
+
+The stored-data gate is in place (session 3, `tests/test_privacy_gate.py`). After every thin
+fixture is imported, from folders and ZIPs, no planted contact detail, token, or key appears
+anywhere in the database file or the log, byte for byte, and no text column holds anything
+the patterns would catch. The injection line is stored only in one message's text, quoted as
+the customer wrote it. A mutation check confirmed the gate fails when redaction is switched
+off.
 
 ## 7. The LLM boundary
 
@@ -527,7 +568,12 @@ resolve. Every other email address and web URL uses an `.example` domain. The fi
 lives in `fixtures/README.md` and the fixture manifest, not inside the data files, which stay
 valid in their native formats.
 
-**Planted cases:**
+**Thin fixtures** (`fixtures/thin/`, session 3) cover one week, 14 to 20 September 2026: two
+overlapping Slack exports, two `gh issue list` snapshots, the customer list, and a manifest
+of planted cases, written by `scripts/build_thin_fixtures.py`. Dhananjay reviewed them before
+any reader was built on them.
+
+**Planted cases** (all in the full dataset; the thin fixtures carry most of them):
 - the same failed workflow reported by three customers across five threads
 - the same problem reported in both Slack and the CSV
 - a message that could belong to either of two themes (corrected in review)
@@ -671,6 +717,12 @@ borrow TraceRoot's open-source engineering conventions instead.
 
 - The evaluation is a regression check, not evidence of real-world quality (section 11).
 - CSV rows without an ID can't be matched across edited exports.
+- Exports are assumed to arrive in the order they were taken. An older Slack export imported
+  after a newer one revises an edited message back to its older text; both versions stay in
+  `signal_revisions`.
+- Redaction can't catch a secret with no recognisable shape or label, or a phone number with
+  fewer than nine digits.
+- A Slack ZIP is read into memory, which suits exports of a few customers' channels.
 - A run's issue state is `unknown` when its snapshot can't place a reopen relative to the
   cutoff, because GitHub's export has no reopen history.
 - Local state is protected by POSIX permissions. On other systems Pulse can't check them.

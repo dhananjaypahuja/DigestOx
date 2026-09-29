@@ -18,3 +18,4 @@ sessions and decided by Dhananjay Pahuja. When the first records were drafted (2
 | [0008](0008-no-prime-or-doctor-inside-a-working-session.md) | Never run `ox agent prime` or `ox doctor` inside a working session | Accepted |
 | [0009](0009-keep-review-context-in-sageox.md) | Keep every session's decisions and evidence available through SageOx | Accepted; amended 2026-09-27 |
 | [0010](0010-bind-every-run-to-an-evidence-snapshot.md) | Bind every run to an evidence snapshot, so later imports can't change its facts | Accepted; amended 2026-09-28 |
+| [0011](0011-vendor-messages-are-context-and-slack-falls-back-to-email-domains.md) | Vendor staff messages are context, not evidence; Slack falls back to email domains | Accepted |
