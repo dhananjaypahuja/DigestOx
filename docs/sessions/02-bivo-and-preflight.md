@@ -152,6 +152,24 @@ uv run --project ~/Workbench/DigestOx python ~/Workbench/DigestOx/scripts/ox_pre
 All five checks pass. The transcript parser and its tests were extended for the real Codex
 recording shape without weakening the check.
 
+## Additional Bivo source review
+
+The five code areas, routers, worker, and existing tests were inspected after the preflight.
+Two input-validation findings remain open in the fictional vendor app; neither blocks the
+session-history preflight:
+
+- **P2, open:** `bivo/plan_engine/router.py` accepts any list for
+  `recent_weekly_minutes`. A value such as `["bad"]` reaches
+  `target_minutes` and raises `TypeError` outside the router's `(PlanError, ValueError)`
+  handler, so `App.handle` does not return a JSON error.
+- **P2, open:** `bivo/coach_tools/router.py` accepts an aware `now` and a naive
+  `last_workout_at`. Their subtraction in `members_needing_attention` raises
+  `TypeError` after the router's exception handler, again bypassing the JSON error.
+
+Both were reproduced through `App.handle` with synthetic request bodies. A later Bivo
+repair should validate these values at the router boundary and add negative API tests. The
+intentional wearable pagination defect stays in place for session 7.
+
 **Next:** Push the DigestOx session-2 commits with Dhananjay's OK, then start session 3.
 
 Retrieve this record with `ox plan view 2026-09-28-session-2-bivo-s-repo`.
