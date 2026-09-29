@@ -14,6 +14,7 @@ GitHub and in SageOx ([decision 0009](../decisions/0009-keep-review-context-in-s
 | Codex re-review | Six repairs verified; two adversarial bypasses fixed in `ca5cadd`; 157 tests pass | [02-codex-rereview.md](02-codex-rereview.md) | `ses_01a0e56c` |
 | 1b | Foundation repairs: all six review findings fixed in migrations `0002` to `0004` and the CLI; after Codex's re-review, the same replacement gap closed in three more tables (`0005`) and two messages corrected; design and decision records updated | [01b-foundation-repairs.md](01b-foundation-repairs.md) | `ses_01a0e4a5`, then `ses_01a0e910` after a context compaction |
 | 2 | Bivo's local repo connected to SageOx; a short Bivo session committed a change, and all five engineering-attention preflight checks pass; two Bivo input bugs from Codex's review fixed; trailer mapping left open for session 8 | [02-bivo-and-preflight.md](02-bivo-and-preflight.md) | `ses_01a0e910` (Claude), `ses_01a0e513` (Codex), Bivo `ses_01a0ea6a` |
+| 3 | Slack and GitHub readers, attribution before redaction, and vendor messages kept as context; re-imports never duplicate; the stored-data privacy gate passes and fails with redaction off | [03-readers-and-privacy-gate.md](03-readers-and-privacy-gate.md) | `ses_01a0eacf` |
 
 The implementation review is HTML-primary; SageOx derives its terminal-readable record.
 Retrieve it with `ox plan view codex-session-1-review-95fc080`. Its findings supersede the
