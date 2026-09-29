@@ -13,7 +13,7 @@ from typing import Annotated, Any
 
 import typer
 
-from customer_pulse import __version__, db, state
+from customer_pulse import __version__, accounts, db, ingest, state
 from customer_pulse.clock import clock_from_env
 from customer_pulse.config import Config, load_config
 from customer_pulse.errors import PulseError
@@ -261,3 +261,123 @@ def _render_status(result: Result) -> None:
         f"last digest {last_text}"
     )
     typer.echo(f"  sessions  {counts['sessions']} engineering sessions reconciled")
+
+
+# Commands that read or write evidence open an existing, current, private database.
+
+
+def _open(config: Config) -> sqlite3.Connection:
+    state.require_initialized(config)
+    conn = db.connect(config.db_path)
+    try:
+        db.require_current(conn)
+    except BaseException:
+        conn.close()
+        raise
+    return conn
+
+
+# pulse accounts load
+
+accounts_app = typer.Typer(help="The customer list: accounts, channels, and email domains.")
+app.add_typer(accounts_app, name="accounts")
+
+FileArg = Annotated[Path, typer.Argument(help="The file to read.", dir_okay=False)]
+
+
+@accounts_app.command("load")
+def accounts_load(ctx: typer.Context, file: FileArg, as_json: JsonFlag = False) -> None:
+    """Add or update customers from a JSON file. Never removes any."""
+
+    def action(config: Config) -> Result:
+        with closing(_open(config)) as conn:
+            result = accounts.load_accounts(conn, file, clock_from_env(os.environ))
+        state.append_log(
+            config,
+            {
+                "event": "accounts_load",
+                "file_name": file.name,
+                **{k: len(v) if isinstance(v, list) else v for k, v in result.items()},
+            },
+        )
+        return result
+
+    _run(ctx, as_json, action, _render_accounts)
+
+
+def _render_accounts(result: Result) -> None:
+    parts = [f"{len(result[k])} {k}" for k in ("added", "updated", "unchanged")]
+    typer.echo(
+        f"Accounts: {', '.join(parts)}; {result['email_domains_added']} email domains added."
+    )
+    if result["not_in_file"]:
+        typer.echo(f"  kept, though not in the file: {', '.join(result['not_in_file'])}")
+
+
+# pulse import slack | github
+
+import_app = typer.Typer(help="Import customer evidence from an export.")
+app.add_typer(import_app, name="import")
+
+
+@import_app.command("slack")
+def import_slack(
+    ctx: typer.Context,
+    export: Annotated[Path, typer.Argument(help="The Slack export ZIP, or its unzipped folder.")],
+    as_json: JsonFlag = False,
+) -> None:
+    """Import a Slack export. Overlapping exports never duplicate a message."""
+
+    def action(config: Config) -> Result:
+        with closing(_open(config)) as conn:
+            return ingest.import_slack(conn, config, export, clock_from_env(os.environ))
+
+    _run(ctx, as_json, action, _render_import)
+
+
+@import_app.command("github")
+def import_github(ctx: typer.Context, file: FileArg, as_json: JsonFlag = False) -> None:
+    """Import issues exported with `gh issue list --json`. Each import records every issue's
+    state as that export saw it."""
+
+    def action(config: Config) -> Result:
+        with closing(_open(config)) as conn:
+            return ingest.import_github(conn, config, file, clock_from_env(os.environ))
+
+    _run(ctx, as_json, action, _render_import)
+
+
+def _render_import(result: Result) -> None:
+    if result["status"] == "already_imported":
+        typer.echo(
+            f"{result['file_name']} was already imported as import {result['import_id']} "
+            f"({result['imported_at']}); nothing changed."
+        )
+        return
+    typer.echo(
+        f"Imported {result['file_name']} as import {result['import_id']}: "
+        f"{result['new']} new, {result['updated']} updated, {result['unchanged']} unchanged."
+    )
+    if issues := result.get("issues"):
+        typer.echo(
+            f"  issues    {issues['new']} new, {issues['updated']} updated, "
+            f"{issues['unchanged']} unchanged"
+        )
+    redacted = result["redacted"]
+    if redacted:
+        typer.echo("  redacted  " + ", ".join(f"{n} {kind}" for kind, n in redacted.items()))
+    if result.get("channels_naming_no_customer"):
+        channels = ", ".join("#" + c for c in result["channels_naming_no_customer"])
+        typer.echo(
+            f"  channels  naming no customer: {channels}; attributed by email domain where possible"
+        )
+    if result.get("vendor_configured") is False:
+        typer.echo(
+            "  warning   no [vendor] in pulse.toml, so staff replies count as customer "
+            "evidence; set vendor.email_domains or vendor.slack_team_ids"
+        )
+    if result["kept_first_attribution"]:
+        typer.echo(
+            f"  note      {result['kept_first_attribution']} records kept the customer "
+            "their first import gave them"
+        )

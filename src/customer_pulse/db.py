@@ -132,6 +132,20 @@ def _check_applied(applied: dict[int, str], available: list[Migration]) -> None:
         )
 
 
+def require_current(conn: sqlite3.Connection) -> None:
+    """Refuse a database that `pulse init` hasn't brought up to this version's schema."""
+    available = available_migrations()
+    applied = _applied(conn) if _table_exists(conn, "schema_migrations") else {}
+    _check_applied(applied, available)
+    pending = [m.version for m in available if m.version not in applied]
+    if pending:
+        raise PulseError(
+            "schema_out_of_date",
+            f"the database needs {describe_migrations(pending)}",
+            hint="run `pulse init` to bring it up to date",
+        )
+
+
 def migrate(conn: sqlite3.Connection, clock: Clock) -> list[int]:
     """Apply pending migrations in order and return the versions applied."""
     conn.execute(_CREATE_SCHEMA_MIGRATIONS)

@@ -6,3 +6,10 @@ timezone = "America/Los_Angeles"
 
 # Local state: the SQLite database. Relative to this file. Git ignores it.
 state_dir = ".pulse"
+
+# The vendor whose customers Pulse tracks. Messages from its own staff are kept as thread
+# context but never counted as customer evidence. GitHub marks staff by authorAssociation.
+[vendor]
+name = "Bivo"
+email_domains = ["bivo.example"]
+slack_team_ids = ["T0BIVO0001"]

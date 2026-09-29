@@ -12,12 +12,26 @@ from customer_pulse.errors import PulseError
 
 CONFIG_FILE_NAME = "pulse.toml"
 DATABASE_FILE_NAME = "pulse.db"
+LOG_FILE_NAME = "pulse.log"
 DEFAULT_TIMEZONE = "UTC"
 DEFAULT_STATE_DIR = ".pulse"
 
 # Every key Pulse understands, by table. Unknown keys are errors, so a typo can't silently
 # fall back to a default. Later sessions add tables here as features arrive.
-_KNOWN_KEYS: dict[str, set[str]] = {"pulse": {"timezone", "state_dir"}}
+_KNOWN_KEYS: dict[str, set[str]] = {
+    "pulse": {"timezone", "state_dir"},
+    "vendor": {"name", "email_domains", "slack_team_ids"},
+}
+
+
+@dataclass(frozen=True)
+class Vendor:
+    """Who the vendor's own staff are, so their messages are kept as context, not counted as
+    customer evidence (decision 0011). GitHub marks staff itself, through authorAssociation."""
+
+    name: str = ""
+    email_domains: frozenset[str] = frozenset()
+    slack_team_ids: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -25,10 +39,15 @@ class Config:
     file: Path | None
     timezone: ZoneInfo
     state_dir: Path
+    vendor: Vendor = Vendor()
 
     @property
     def db_path(self) -> Path:
         return self.state_dir / DATABASE_FILE_NAME
+
+    @property
+    def log_path(self) -> Path:
+        return self.state_dir / LOG_FILE_NAME
 
 
 def load_config(explicit: Path | None, cwd: Path) -> Config:
@@ -54,6 +73,7 @@ def load_config(explicit: Path | None, cwd: Path) -> Config:
         file=path.resolve() if path else None,
         timezone=_timezone(section.get("timezone", DEFAULT_TIMEZONE), path),
         state_dir=_state_dir(section.get("state_dir", DEFAULT_STATE_DIR), base, path),
+        vendor=_vendor(data.get("vendor", {}), path),
     )
 
 
@@ -109,3 +129,24 @@ def _state_dir(value: Any, base: Path, path: Path | None) -> Path:
     if not isinstance(value, str) or not value:
         raise PulseError("invalid_config", f"{_where(path)}pulse.state_dir must be a path")
     return (base / Path(value).expanduser()).resolve()
+
+
+def _strings(value: Any, key: str, path: Path | None) -> frozenset[str]:
+    if not isinstance(value, list) or not all(isinstance(v, str) and v for v in value):
+        raise PulseError("invalid_config", f"{_where(path)}{key} must be a list of strings")
+    return frozenset(value)
+
+
+def _vendor(section: dict[str, Any], path: Path | None) -> Vendor:
+    name = section.get("name", "")
+    if not isinstance(name, str):
+        raise PulseError("invalid_config", f"{_where(path)}vendor.name must be a string")
+    domains = _strings(section.get("email_domains", []), "vendor.email_domains", path)
+    if any(d != d.lower() or "@" in d or "." not in d for d in domains):
+        raise PulseError(
+            "invalid_config",
+            f"{_where(path)}vendor.email_domains must be lowercase domains without an @",
+            hint='for example email_domains = ["bivo.example"]',
+        )
+    teams = _strings(section.get("slack_team_ids", []), "vendor.slack_team_ids", path)
+    return Vendor(name=name, email_domains=domains, slack_team_ids=teams)

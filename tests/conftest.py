@@ -349,3 +349,51 @@ class Builder:
 @pytest.fixture
 def build(conn: sqlite3.Connection) -> Builder:
     return Builder(conn)
+
+
+# The thin fixtures (fixtures/thin), imported through the CLI
+
+THIN = Path(__file__).resolve().parent.parent / "fixtures" / "thin"
+THIN_MANIFEST = json.loads((THIN / "manifest.json").read_text(encoding="utf-8"))
+SLACK_A, SLACK_B = THIN / "slack" / "export-a", THIN / "slack" / "export-b"
+GITHUB_17, GITHUB_20 = (
+    THIN / "github" / "issues-2026-09-17.json",
+    THIN / "github" / "issues-2026-09-20.json",
+)
+
+THIN_CONFIG = """[pulse]
+timezone = "America/Los_Angeles"
+
+[vendor]
+name = "Bivo"
+email_domains = ["bivo.example"]
+slack_team_ids = ["T0BIVO0001"]
+"""
+
+
+@pytest.fixture
+def thin_project(project: Path) -> Path:
+    """An initialized project with Bivo as the vendor and the thin fixtures' customers."""
+    (project / "pulse.toml").write_text(THIN_CONFIG, encoding="utf-8")
+    assert pulse("init")[0] == 0
+    code, out = pulse("accounts", "load", str(THIN / "accounts.json"))
+    assert code == 0, out
+    return project
+
+
+def zip_export(folder: Path, into: Path, *, root: str | None = None) -> Path:
+    """Zip a Slack export folder the way Slack delivers it, optionally inside one folder."""
+    import zipfile
+
+    target = into / f"{folder.name}{'-' + root if root else ''}.zip"
+    with zipfile.ZipFile(target, "w") as archive:
+        for file in sorted(folder.rglob("*.json")):
+            name = file.relative_to(folder).as_posix()
+            archive.write(file, f"{root}/{name}" if root else name)
+    return target
+
+
+def open_db(project: Path) -> sqlite3.Connection:
+    conn = sqlite3.connect(project / ".pulse" / "pulse.db")
+    conn.row_factory = sqlite3.Row
+    return conn
