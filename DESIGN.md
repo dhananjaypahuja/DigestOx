@@ -443,7 +443,15 @@ the same session. The changed files are the paths git lists for that commit. The
 check needs a write or edit action on one of those files. For Codex's `functions.exec` shape,
 it decodes escaped patch newlines and recovers `apply_patch` file markers. An uploaded session
 can arrive as a stub, so the preflight downloads it once (`ox session download`) before
-reading it.
+reading it. On 2026-09-28 it passed all five checks against a real Bivo session.
+
+**Open for session 8: mapping a trailer to its session.** The evidence levels above assume
+Pulse can tell which session a commit's trailer names. Ox 0.18.0's session JSON doesn't carry
+that ID, and the preflight's fallback, a commit and trailer shown in the session's own
+recorded git output, would also match a session that merely printed another session's
+commit. Session 8 decides between that fallback bounded by the session's start and end times,
+a documented ox source for the ID or the produced commits, and the upstream request drafted in
+session 2.
 
 ## 11. Evaluation
 
@@ -589,7 +597,8 @@ automatic issue creation or customer replies, and PDFs or other arbitrary docume
 | `ox agent prime` | Reads hook JSON from stdin and waits if stdin is an open pipe (run it with `</dev/null`). A second prime in the same agent session is a compact re-prime without the team-docs catalog. In the first session, a re-prime started a new recording for the same agent. In session 1b, Claude Code's context compaction re-ran prime through its SessionStart hook, which finalized and uploaded the running recording (20h 35m, 517 entries) and started a new one | live, sessions 1 and 1b | New |
 | `ox init` | Skips an existing project `.claude/settings.json`, installing none of its six Claude Code hooks while reporting success; `ox integrate list` then shows Claude Code as not integrated. Merging the hooks by hand fixes it. Codex and git hooks install either way | live, session 2 | **New: upstream draft written** |
 | Trailers across repos | `ox hooks commit-msg` takes the recording that is active in the committing repo: commits made in Bivo from a DigestOx session carry no `SageOx-Session:` trailer | live, session 2 | New |
-| Uploaded sessions | `ox session view <name>` reported "not found" for an uploaded session. Its help says sessions can arrive as metadata-only stubs, and `ox session download <name>` fetches their content | live, session 2 (download not yet exercised) | New |
+| Uploaded sessions | `ox session view <name>` reported "not found" for an uploaded session. Its help says sessions can arrive as metadata-only stubs, and `ox session download <name>` fetches their content. The Bivo session was already hydrated, so the download path is still unexercised | live, session 2 | New |
+| Session IDs | Neither `ox session list --json` (name, status, title, summary, entry count, hydration) nor `ox session view --json --metadata` (agent ID and type, user, repo ID, creation time) carries the `ses_…` ID that commit trailers name | live, session 2 | **New: upstream draft written** |
 
 **Live tests in the first session:**
 

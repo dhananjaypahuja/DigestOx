@@ -15,6 +15,7 @@ Each draft says how the problem was found. "Observed" means it happened on this 
 | [`ox init` skips an existing `.claude/settings.json`](init-skips-an-existing-claude-settings-file.md) | observed | high: Claude Code sessions go unrecorded without a warning |
 | [`ox agent prime` waits forever on an open stdin](prime-waits-on-open-stdin.md) | observed | medium |
 | [File-change murmurs ignore the murmuring setting](file-change-murmurs-ignore-the-setting.md) | from source, and one observed murmur | medium |
+| [Session JSON omits the ID that commit trailers carry](session-json-omits-the-trailer-id.md) | observed | medium: commits can't be mapped to sessions by ID |
 | [`ox hooks test` sends a zero timestamp](hooks-test-sends-a-zero-timestamp.md) | observed | low |
 | [`ox plan lint --file` flags a credit that only exists in ox's own script](plan-lint-matches-its-own-chrome.md) | observed and from source | low |
 | [Docs that disagree with the code](docs-that-disagree-with-the-code.md) | from source | low |

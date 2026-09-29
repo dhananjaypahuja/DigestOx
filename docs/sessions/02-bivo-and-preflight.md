@@ -7,10 +7,12 @@
 - **Plan:** `2026-09-27-customer-pulse-v1-build-plan`, session 2. Its gates are Dhananjay's OK
   for `ox init` (given on 2026-09-28: "yes start") and Dhananjay starting the short Bivo
   session.
-- **Recording:** Claude's setup is in SageOx session `ses_01a0e910`. The short Bivo session is
+- **Recording:** Claude's setup and wrap-up are in SageOx session `ses_01a0e910`; Codex's
+  preflight fixes are in `ses_01a0e513`. The short Bivo session is
   `ses_01a0ea6a-7eac-7376-a7ea-aad43720da8b` in Bivo's own ledger.
-- **Status:** complete locally. Claude Code could not run here because its CLI was not
-  authenticated, so Codex ran the bounded session with a Bivo recording.
+- **Status:** complete, and ready for review. According to Codex's record, Claude Code's CLI
+  wasn't signed in when Dhananjay started it in Bivo, so Codex ran the short session instead,
+  with a Bivo recording.
 
 ## Bivo's repo
 
@@ -103,6 +105,29 @@ regression tests were extended, all five checks passed. The session is uploaded,
 resolves to `bf84216`, Git reports both changed files, the transcript records patch actions
 on both, and the Bivo and DigestOx session lists are separate.
 
+## Claude's review of the finished session
+
+Claude re-ran the preflight from Bivo after Codex's changes: all five checks pass, for session
+`2026-09-28T23-47-pahuja-dhananjay-OxyOAs` and commit `bf84216`. Codex's two parser changes
+are sound:
+- **Codex's recorded patches.** Codex records a `functions.exec` call whose input holds an
+  escaped patch. The parser now reads the patch's file markers from it, and a test pins the
+  shape.
+- **Trailer resolution.** The session's `ox session view --json --metadata` holds no `ses_…`
+  ID: its fields are the agent ID and type, the user, the repo ID, and the creation time, and
+  `ox session list --json` carries none either. So the preflight resolves a trailer when the
+  session's own recorded git output shows that commit with that trailer. A test checks that
+  an ID merely mentioned in the transcript doesn't count.
+
+**One limit, left open for session 8.** The fallback is weaker than an ID match: a session that
+printed an earlier commit made by another session would also match it. That is acceptable for
+this preflight, whose session made its own commit. But session 8's reconciliation has to map
+trailers to sessions for every commit, and DESIGN.md section 10 assumes it can. Session 8
+decides how:
+- the same fallback, bounded by the session's start and end times
+- a documented ox command that exposes the session ID or its produced commits
+- the upstream request drafted in this session
+
 ## Documents
 
 - **DESIGN.md:** Bivo's layout and code-area prefixes (section 12), the planted wearable-sync
@@ -110,8 +135,11 @@ on both, and the Bivo and DigestOx session lists are separate.
   ox facts from this session (section 14).
 - **Upstream draft:**
   [`ox init` skips an existing `.claude/settings.json`](../upstream/init-skips-an-existing-claude-settings-file.md),
-  for Dhananjay to file. No new decision record: the layout and the preflight follow decisions
-  0001 and 0002.
+  for Dhananjay to file. A second draft,
+  [session JSON omits the ID that commit trailers carry](../upstream/session-json-omits-the-trailer-id.md),
+  asks for that ID in `ox session list --json` and `ox session view --json`. No new decision
+  record: the layout and the preflight follow decisions 0001 and 0002, and the trailer mapping
+  is decided in session 8.
 
 ## Commits
 
@@ -120,11 +148,16 @@ on both, and the Bivo and DigestOx session lists are separate.
 | Bivo | `82dead4` | feat: Bivo platform with five code areas, a REST layer, a worker, and tests | 23 passed; ruff clean |
 | Bivo | `4d66e88` | chore: connect the repo to SageOx | 23 passed; `ox integrate list`: Claude Code integrated |
 | Bivo | `bf84216` | docs(coach-tools): fix a spelling mistake in the attention rules | 23 passed; ruff clean; SageOx trailer present |
+| Bivo | `6111cf6` | fix(api): return JSON errors for invalid plan and coach inputs | 33 passed (6 of the 10 new tests fail without the fix); ruff clean |
 | DigestOx | `f31e9a4` | feat: add the engineering-attention preflight for the vendor repo | 186 passed; `ruff check` and `ruff format --check` clean |
+| DigestOx | `ff5ada0` | docs: record session 2's Bivo repo, the preflight, and an ox init gap | documents only |
+| DigestOx | `9db064b` | fix: verify Bivo preflight against real Codex session (Codex) | all five preflight checks pass (Codex's run) |
+| DigestOx | `26e4d04` | docs: record open Bivo API validation findings (Codex) | documents only |
 
-This record, DESIGN.md, and the upstream draft were committed together after `f31e9a4`.
-The parser fix and this verified outcome are a subsequent local change. DigestOx `origin/main`
-remains at `b165529`; session 2's two commits and the forthcoming review commit are local.
+This version of the record is committed with DESIGN.md and the second upstream draft, after
+`26e4d04`. Claude's final validation: DigestOx 188 passed and ruff clean; Bivo 33 passed and
+ruff clean; the preflight passes all five checks. DigestOx `origin/main` is still at `b165529`;
+every session 2 commit is local until Dhananjay approves a push. Bivo is never pushed.
 
 ## Next step
 
@@ -150,25 +183,29 @@ uv run --project ~/Workbench/DigestOx python ~/Workbench/DigestOx/scripts/ox_pre
 ```
 
 All five checks pass. The transcript parser and its tests were extended for the real Codex
-recording shape without weakening the check.
+recording shape without weakening the check. The trailer fallback's limit is described in
+"Claude's review of the finished session" above.
 
 ## Additional Bivo source review
 
 The five code areas, routers, worker, and existing tests were inspected after the preflight.
-Two input-validation findings remain open in the fictional vendor app; neither blocks the
-session-history preflight:
+Codex found two input-validation bugs in the fictional vendor app. Neither blocked the
+session-history preflight, and both are fixed in Bivo `6111cf6`:
 
-- **P2, open:** `bivo/plan_engine/router.py` accepts any list for
-  `recent_weekly_minutes`. A value such as `["bad"]` reaches
-  `target_minutes` and raises `TypeError` outside the router's `(PlanError, ValueError)`
-  handler, so `App.handle` does not return a JSON error.
-- **P2, open:** `bivo/coach_tools/router.py` accepts an aware `now` and a naive
-  `last_workout_at`. Their subtraction in `members_needing_attention` raises
-  `TypeError` after the router's exception handler, again bypassing the JSON error.
+- **P2, resolved in `6111cf6`:** `bivo/plan_engine/router.py` accepted any list for
+  `recent_weekly_minutes`. A value such as `["bad"]` reached `target_minutes` and raised
+  `TypeError` outside the router's `(PlanError, ValueError)` handler, so `App.handle` returned
+  no JSON error.
+- **P2, resolved in `6111cf6`:** `bivo/coach_tools/router.py` accepted an aware `now` and a naive
+  `last_workout_at`. Their subtraction in `members_needing_attention` raised `TypeError`
+  after the router's exception handler, again bypassing the JSON error.
 
-Both were reproduced through `App.handle` with synthetic request bodies. A later Bivo
-repair should validate these values at the router boundary and add negative API tests. The
-intentional wearable pagination defect stays in place for session 7.
+Both were reproduced through `App.handle` with synthetic request bodies. The fix validates
+at the router boundary: the plan router requires whole minutes and an ISO week start, and the
+coach router requires timestamps with a timezone offset, member objects with an ID and a name,
+and whole-number minutes. Each bad value is a 400 with a stable code. Ten API tests cover
+them, including both reproductions and timestamps with different offsets. The intentional
+wearable pagination defect stays in place for session 7.
 
 **Next:** Push the DigestOx session-2 commits with Dhananjay's OK, then start session 3.
 
